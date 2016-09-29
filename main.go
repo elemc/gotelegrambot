@@ -1,0 +1,40 @@
+package main
+
+import (
+	"RussianFedoraBot/db"
+	"log"
+
+	"gopkg.in/telegram-bot-api.v4"
+)
+
+var bot *tgbotapi.BotAPI
+
+func main() {
+	bot, err := tgbotapi.NewBotAPI("290179858:AAFvx-ekOd7OkPkQYnGVggakR12BemcpxVI")
+	if err != nil {
+		log.Fatalf("Cannot create bot api")
+	}
+
+	bot.Debug = false // true
+
+	log.Printf("Authorized on account %s", bot.Self.UserName)
+
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates, err := bot.GetUpdatesChan(u)
+	if err != nil {
+		log.Panic(err.Error())
+	}
+
+	for update := range updates {
+		if update.Message == nil {
+			continue
+		}
+
+		// log.Printf("%+v", update.Message.Chat)
+		// log.Printf("%+v", update.Message)
+		// log.Printf(update.Message.Text)
+		go db.GoSaveMessage(update.Message)
+	}
+}
