@@ -74,5 +74,10 @@ func getMain() (body string) {
 }
 
 func getDate(id int64) (body string) {
+	// TODO: create it
 	return
+}
+
+func getMessages(id int64) {
+
 }
