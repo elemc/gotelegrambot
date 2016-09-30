@@ -32,9 +32,6 @@ func main() {
 			continue
 		}
 
-		// log.Printf("%+v", update.Message.Chat)
-		// log.Printf("%+v", update.Message)
-		// log.Printf(update.Message.Text)
 		go db.GoSaveMessage(update.Message)
 	}
 }

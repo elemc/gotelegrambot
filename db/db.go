@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"gopkg.in/telegram-bot-api.v4"
@@ -16,6 +17,7 @@ const (
 	databaseFile = "bot.sqlite"
 )
 
+// GoSaveMessage is a shell method for goroutine SaveMessage
 func GoSaveMessage(msg *tgbotapi.Message) {
 	err := SaveMessage(msg)
 	if err != nil {
@@ -23,6 +25,7 @@ func GoSaveMessage(msg *tgbotapi.Message) {
 	}
 }
 
+// SaveMessage method save message to database
 func SaveMessage(msg *tgbotapi.Message) (err error) {
 	if msg == nil {
 		return
@@ -88,6 +91,11 @@ func SaveMessage(msg *tgbotapi.Message) (err error) {
 		replyToMessageID = msg.ReplyToMessage.MessageID
 	}
 
+	messageText := msg.Text
+	if strings.Contains(messageText, "\"") {
+		strings.Replace(messageText, "\"", "\\\"", -1)
+	}
+
 	if !msgPresent { // INSERT
 		query = fmt.Sprintf(`INSERT INTO messages
             (message_id, message_from, date, chat, forward_from, forward_from_chat,
@@ -96,7 +104,7 @@ func SaveMessage(msg *tgbotapi.Message) (err error) {
 			msg.MessageID, msg.From.ID, msg.Date, msg.Chat.ID,
 			forwardFromID, forwardFromChatID,
 			msg.ForwardDate, replyToMessageID,
-			msg.EditDate, msg.Text, msg.Caption)
+			msg.EditDate, messageText, msg.Caption)
 	} else { // UPDATE
 		query = fmt.Sprintf(`UPDATE messages SET
                                 message_from=%d, date=%d, chat=%d, forward_from=%d,
@@ -106,7 +114,7 @@ func SaveMessage(msg *tgbotapi.Message) (err error) {
 			msg.From.ID, msg.Date, msg.Chat.ID,
 			forwardFromID, forwardFromChatID,
 			msg.ForwardDate, replyToMessageID,
-			msg.EditDate, msg.Text, msg.Caption, msg.MessageID)
+			msg.EditDate, messageText, msg.Caption, msg.MessageID)
 	}
 
 	err = runQuery(query)
@@ -114,6 +122,7 @@ func SaveMessage(msg *tgbotapi.Message) (err error) {
 	return
 }
 
+// SaveUser method save user to database
 func SaveUser(user *tgbotapi.User) (err error) {
 	if user == nil {
 		return
@@ -146,6 +155,7 @@ func SaveUser(user *tgbotapi.User) (err error) {
 	return
 }
 
+// SaveChat method for save chat to database
 func SaveChat(chat *tgbotapi.Chat) (err error) {
 	if chat == nil {
 		return
