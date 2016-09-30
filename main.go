@@ -1,7 +1,7 @@
 package main
 
 import (
-	"RussianFedoraBot/db"
+	"RussianFedoraBot/httpserver"
 	"log"
 
 	"gopkg.in/telegram-bot-api.v4"
@@ -19,19 +19,24 @@ func main() {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
+	// start http server
 
-	updates, err := bot.GetUpdatesChan(u)
-	if err != nil {
-		log.Panic(err.Error())
-	}
+	s := httpserver.Server{Addr: ":8088"}
+	s.Start()
 
-	for update := range updates {
-		if update.Message == nil {
-			continue
-		}
-
-		go db.GoSaveMessage(update.Message)
-	}
+	// u := tgbotapi.NewUpdate(0)
+	// u.Timeout = 60
+	//
+	// updates, err := bot.GetUpdatesChan(u)
+	// if err != nil {
+	// 	log.Panic(err.Error())
+	// }
+	//
+	// for update := range updates {
+	// 	if update.Message == nil {
+	// 		continue
+	// 	}
+	//
+	// 	go db.GoSaveMessage(update.Message)
+	// }
 }

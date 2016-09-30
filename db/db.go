@@ -189,6 +189,63 @@ func SaveChat(chat *tgbotapi.Chat) (err error) {
 	return
 }
 
+// GetChats returns chat list
+func GetChats() (chats []*tgbotapi.Chat, err error) {
+	db, err := openDatabase()
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT id, type, title, first_name, last_name, username FROM chats")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		chat := new(tgbotapi.Chat)
+		err = rows.Scan(&chat.ID, &chat.Type, &chat.Title, &chat.FirstName, &chat.LastName, &chat.UserName)
+		if err != nil {
+			return
+		}
+		chats = append(chats, chat)
+	}
+
+	return
+}
+
+// GetMessages returns chat list
+func GetMessages() (chats []*tgbotapi.Message, err error) {
+	db, err := openDatabase()
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT message_id, message_from, date, chat, forward_from, forward_from_chat, forward_date, reply_to_message, edit_date, text, caption FROM chats")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			messageFrom int64
+			chat int64
+			messageForwardFrom
+		)
+		msg := new(tgbotapi.Message)
+		err = rows.Scan(&msg.MessageID, &)
+		if err != nil {
+			return
+		}
+		chats = append(chats, chat)
+	}
+
+	return
+}
+
 func openDatabase() (db *sql.DB, err error) {
 	db, err = sql.Open("sqlite3", databaseFile)
 	if err != nil {
