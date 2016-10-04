@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,18 @@ type Server struct {
 const (
 	header = `<html>
     <head>
+		<style type="text/css">
+			TH {
+		    	background: #a52a2a; /* Цвет фона */
+		    	color: white; /* Цвет текста */
+		   	}
+		   	TR.even {
+    			background: #fff8dc;
+   			}
+			P.reply {
+				color: grey;
+			}
+		</style>
     </head>
 
     <body>`
@@ -72,7 +85,15 @@ func getMain() (body string) {
 	}
 
 	for _, chat := range chats {
-		body += fmt.Sprintf("<li><a href=\"/%d/\">%s (%s %s)</a></li>", chat.ID, chat.UserName, chat.FirstName, chat.LastName)
+		chatName := chat.UserName
+		if chat.UserName == "" {
+			chatName = strings.TrimSpace(fmt.Sprintf("%s %s", chat.FirstName, chat.LastName))
+		}
+		if chat.UserName != "" && (chat.FirstName != "" || chat.LastName != "") {
+			names := strings.TrimSpace(chat.FirstName + " " + chat.LastName)
+			chatName += fmt.Sprintf(" (%s)", names)
+		}
+		body += fmt.Sprintf("<li><a href=\"/%d/\">%s</a></li>", chat.ID, chatName)
 	}
 	body += "</ul>"
 
@@ -85,7 +106,7 @@ func getDate(id int64) (body string) {
 }
 
 func getMessages(chatID int64) (body string) {
-	body += "<h1>Message list</h1>"
+	body += "<table border=0><caption>Messages list</caption>"
 
 	msgs, err := db.GetMessages(chatID)
 	if err != nil {
@@ -93,7 +114,7 @@ func getMessages(chatID int64) (body string) {
 		return ""
 	}
 
-	for _, msg := range msgs {
+	for index, msg := range msgs {
 		//body += fmt.Sprintf("<li><a href=\"/%d/\">%s (%s %s)</a></li>", chat.ID, chat.UserName, chat.FirstName, chat.LastName)
 		t := time.Unix(int64(msg.Date), 0)
 		name := msg.From.UserName
@@ -104,8 +125,28 @@ func getMessages(chatID int64) (body string) {
 			names := strings.TrimSpace(msg.From.FirstName + " " + msg.From.LastName)
 			name += fmt.Sprintf(" (%s)", names)
 		}
-		body += fmt.Sprintf("<p>[%s] <strong>%s:</strong> %s</p>", t.String(), name, msg.Text)
+
+		msgText := msg.Text
+		re := regexp.MustCompile(`(http|ftp|https):\/\/([\w\-_]+(?:(?:\.[\w\-_]+)+))([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?`)
+		msgText = re.ReplaceAllString(msgText, `<a href="$0">$0</a>`)
+
+		if msg.ReplyToMessage != nil {
+			msgText = fmt.Sprintf("<p class=\"reply\"> > %s</p>\n<p>%s</p>", msg.ReplyToMessage.Text, msgText)
+		}
+
+		class := ""
+		if index%2 == 0 {
+			class = "class=\"even\""
+		}
+
+		body += fmt.Sprintf(`
+			<tr %s>
+				<td class="la" width='12%%'>%s</td>
+				<td class="la" width='17%%'><strong>%s</strong></td>
+				<td class="la" >%s</td>
+			</tr>`, class, t.String(), name, msgText)
 	}
+	body += "</table>"
 
 	return
 }
