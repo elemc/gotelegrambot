@@ -22,7 +22,6 @@ type Server struct {
 const (
 	header = `<html>
     <head>
-		<meta http-equiv="refresh" content="5">
 		<style type="text/css">
 			TH {
 		    	background: #a52a2a; /* Цвет фона */
@@ -66,7 +65,7 @@ func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			log.Printf("Group ID: %d", iID)
-			w.Write(parseTemplate(getMessages(iID)))
+			w.Write(parseTemplate(s.getMessages(iID)))
 		}
 	}
 }
@@ -99,11 +98,7 @@ func (s *Server) getMain() (body string) {
 			chatName += fmt.Sprintf(" (%s)", names)
 		}
 
-		countPhotos, err := s.GetPhoto(chat.ID)
-		if err != nil {
-			continue
-		}
-		body += fmt.Sprintf("<li><a href=\"/%d/\">%s (%d)</a></li>", chat.ID, chatName, countPhotos)
+		body += fmt.Sprintf("<li><a href=\"/%d/\">%s</a></li>", chat.ID, chatName)
 	}
 	body += "</ul>"
 
@@ -115,7 +110,7 @@ func getDate(id int64) (body string) {
 	return
 }
 
-func getMessages(chatID int64) (body string) {
+func (s *Server) getMessages(chatID int64) (body string) {
 	body += "<table border=0><caption>Messages list</caption>"
 
 	msgs, err := db.GetMessages(chatID)
@@ -123,6 +118,8 @@ func getMessages(chatID int64) (body string) {
 		log.Printf("Error in getMessages: %s", err)
 		return ""
 	}
+
+	photoCache := make(map[int]string)
 
 	for index, msg := range msgs {
 		//body += fmt.Sprintf("<li><a href=\"/%d/\">%s (%s %s)</a></li>", chat.ID, chat.UserName, chat.FirstName, chat.LastName)
@@ -149,12 +146,25 @@ func getMessages(chatID int64) (body string) {
 			class = "class=\"even\""
 		}
 
+		var photo string
+
+		if p, ok := photoCache[msg.From.ID]; ok {
+			photo = p
+		} else {
+			photo, err = s.GetPhoto(int64(msg.From.ID))
+			if err != nil {
+				log.Printf(err.Error())
+			}
+			photoCache[msg.From.ID] = photo
+		}
+
 		body += fmt.Sprintf(`
 			<tr %s>
+				<td class="la" align="center" width='5%%'><img src="%s" height="30px" width="30px"></img></td>
 				<td class="la" width='12%%'>%s</td>
 				<td class="la" width='17%%'><strong>%s</strong></td>
 				<td class="la" >%s</td>
-			</tr>`, class, t.String(), name, msgText)
+			</tr>`, class, photo, t.String(), name, msgText)
 	}
 	body += "</table>"
 
