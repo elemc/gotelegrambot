@@ -9,16 +9,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/telegram-bot-api.v4"
 )
 
 // Server is a main object
 type Server struct {
 	Addr string
+	Bot  *tgbotapi.BotAPI
 }
 
 const (
 	header = `<html>
     <head>
+		<meta http-equiv="refresh" content="5">
 		<style type="text/css">
 			TH {
 		    	background: #a52a2a; /* Цвет фона */
@@ -50,7 +54,7 @@ func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if len(lpath) == 2 {
 		if lpath[0] == "" && lpath[1] == "" {
-			w.Write(parseTemplate(getMain()))
+			w.Write(parseTemplate(s.getMain()))
 		}
 	} else if len(lpath) == 3 {
 		if lpath[1] != "" {
@@ -72,7 +76,7 @@ func parseTemplate(body string) []byte {
 	return []byte(res)
 }
 
-func getMain() (body string) {
+func (s *Server) getMain() (body string) {
 	body += "<h1>Chat list</h1><ul>"
 
 	chats, err := db.GetChats()
@@ -94,7 +98,12 @@ func getMain() (body string) {
 			names := strings.TrimSpace(chat.FirstName + " " + chat.LastName)
 			chatName += fmt.Sprintf(" (%s)", names)
 		}
-		body += fmt.Sprintf("<li><a href=\"/%d/\">%s</a></li>", chat.ID, chatName)
+
+		countPhotos, err := s.GetPhoto(chat.ID)
+		if err != nil {
+			continue
+		}
+		body += fmt.Sprintf("<li><a href=\"/%d/\">%s (%d)</a></li>", chat.ID, chatName, countPhotos)
 	}
 	body += "</ul>"
 
