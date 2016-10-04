@@ -3,8 +3,10 @@ package httpserver
 import (
 	"RussianFedoraBot/db"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -49,6 +51,9 @@ func (s *Server) Start() {
 
 func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 	lpath := strings.Split(r.URL.Path, "/")
+	for i, p := range lpath {
+		log.Printf("[%d] = [%s]", i, p)
+	}
 
 	w.WriteHeader(http.StatusOK)
 	if len(lpath) == 2 {
@@ -56,7 +61,24 @@ func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 			w.Write(parseTemplate(s.getMain()))
 		}
 	} else if len(lpath) == 3 {
-		if lpath[1] != "" {
+		if lpath[1] == "static" {
+			filename := lpath[2]
+			fullpath := fmt.Sprintf("static/%s", filename)
+			f, err := os.Open(fullpath)
+			if err != nil {
+				log.Printf(err.Error())
+				return
+			}
+			defer f.Close()
+			w.Header().Add("content-type", "image/jpg")
+			data, err := ioutil.ReadAll(f)
+			if err != nil {
+				log.Printf(err.Error())
+				return
+			}
+			w.Write(data)
+			return
+		} else if lpath[1] != "" {
 			iID, err := strconv.ParseInt(lpath[1], 10, 64)
 			if err != nil {
 				log.Printf(err.Error())
@@ -67,6 +89,7 @@ func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Group ID: %d", iID)
 			w.Write(parseTemplate(s.getMessages(iID)))
 		}
+	} else if len(lpath) == 4 {
 	}
 }
 
@@ -160,7 +183,7 @@ func (s *Server) getMessages(chatID int64) (body string) {
 
 		body += fmt.Sprintf(`
 			<tr %s>
-				<td class="la" align="center" width='5%%'><img src="%s" height="30px" width="30px"></img></td>
+				<td class="la" align="center" width='5%%'><img src="../%s" height="30px" width="30px"></img></td>
 				<td class="la" width='12%%'>%s</td>
 				<td class="la" width='17%%'><strong>%s</strong></td>
 				<td class="la" >%s</td>

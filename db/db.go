@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	databaseFile     = "bot.sqlite"
-	couchbaseCluster = "couchbase://172.16.32.81"
+	couchbaseCluster = "couchbase://couchbase"
 	couchbaseBucket  = "RussianFedoraBot"
 	couchbaseSecret  = "3510"
 )
