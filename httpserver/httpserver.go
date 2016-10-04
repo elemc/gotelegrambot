@@ -87,10 +87,10 @@ func getMain() (body string) {
 			chatName = chat.UserName
 		}
 
-		if chat.UserName == "" {
+		if chatName == "" {
 			chatName = strings.TrimSpace(fmt.Sprintf("%s %s", chat.FirstName, chat.LastName))
 		}
-		if chat.UserName != "" && (chat.FirstName != "" || chat.LastName != "") {
+		if chatName != "" && (chat.FirstName != "" || chat.LastName != "") {
 			names := strings.TrimSpace(chat.FirstName + " " + chat.LastName)
 			chatName += fmt.Sprintf(" (%s)", names)
 		}
