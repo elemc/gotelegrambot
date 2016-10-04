@@ -1,6 +1,7 @@
 package main
 
 import (
+	"RussianFedoraBot/db"
 	"RussianFedoraBot/httpserver"
 	"log"
 
@@ -22,21 +23,21 @@ func main() {
 	// start http server
 
 	s := httpserver.Server{Addr: ":8088"}
-	s.Start()
+	go s.Start()
 
-	// u := tgbotapi.NewUpdate(0)
-	// u.Timeout = 60
-	//
-	// updates, err := bot.GetUpdatesChan(u)
-	// if err != nil {
-	// 	log.Panic(err.Error())
-	// }
-	//
-	// for update := range updates {
-	// 	if update.Message == nil {
-	// 		continue
-	// 	}
-	//
-	// 	go db.GoSaveMessage(update.Message)
-	// }
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates, err := bot.GetUpdatesChan(u)
+	if err != nil {
+		log.Panic(err.Error())
+	}
+
+	for update := range updates {
+		if update.Message == nil {
+			continue
+		}
+
+		go db.GoSaveMessage(update.Message)
+	}
 }
