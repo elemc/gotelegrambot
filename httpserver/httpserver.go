@@ -46,9 +46,9 @@ func (s *Server) Start() {
 
 func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 	lpath := strings.Split(r.URL.Path, "/")
-	for index, path := range lpath {
-		log.Printf("Path [%d]: %s", index, path)
-	}
+	// for index, path := range lpath {
+	// 	log.Printf("Path [%d]: %s", index, path)
+	// }
 
 	w.WriteHeader(http.StatusOK)
 	if len(lpath) == 2 {
@@ -85,14 +85,14 @@ func getMain() (body string) {
 	}
 
 	for _, chat := range chats {
-		chatName := chat.UserName
-		if chat.UserName == "" {
-			chatName = strings.TrimSpace(fmt.Sprintf("%s %s", chat.FirstName, chat.LastName))
-		}
-		if chat.UserName != "" && (chat.FirstName != "" || chat.LastName != "") {
-			names := strings.TrimSpace(chat.FirstName + " " + chat.LastName)
-			chatName += fmt.Sprintf(" (%s)", names)
-		}
+		chatName := chat.Title
+		// if chat.UserName == "" {
+		// 	chatName = strings.TrimSpace(fmt.Sprintf("%s %s", chat.FirstName, chat.LastName))
+		// }
+		// if chat.UserName != "" && (chat.FirstName != "" || chat.LastName != "") {
+		// 	names := strings.TrimSpace(chat.FirstName + " " + chat.LastName)
+		// 	chatName += fmt.Sprintf(" (%s)", names)
+		// }
 		body += fmt.Sprintf("<li><a href=\"/%d/\">%s</a></li>", chat.ID, chatName)
 	}
 	body += "</ul>"
