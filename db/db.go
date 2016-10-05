@@ -195,3 +195,39 @@ func GetMessages(chatID int64) (messages []*tgbotapi.Message, err error) {
 
 	return
 }
+
+// GetUsers returns chat list
+func GetUsers() (users []*tgbotapi.User, err error) {
+	//query := couchbase.NewN1qlQuery("SELECT first_name, id, last_name, title, type, username FROM RussianFedoraBot WHERE type='chat'")
+
+	type couchuser struct {
+		User tgbotapi.User `json:"RussianFedoraBot"`
+	}
+
+	query := couchbase.NewN1qlQuery("SELECT * FROM RussianFedoraBot WHERE type='user'")
+	res, err := bucket.ExecuteN1qlQuery(query, nil)
+	if err != nil {
+		return
+	}
+
+	//var data interface{}
+
+	user := couchuser{}
+	for res.Next(&user) {
+
+		data, err := json.Marshal(user.User)
+		if err != nil {
+			log.Printf("Error in marshal GetUsers: %s", err)
+			continue
+		}
+		oUser := new(tgbotapi.User)
+		err = json.Unmarshal(data, oUser)
+		if err != nil {
+			log.Printf("Error in unmarshal GetUsers: %s", err)
+			continue
+		}
+		users = append(users, oUser)
+	}
+
+	return
+}

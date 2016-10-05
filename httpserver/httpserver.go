@@ -17,8 +17,9 @@ import (
 
 // Server is a main object
 type Server struct {
-	Addr string
-	Bot  *tgbotapi.BotAPI
+	Addr       string
+	Bot        *tgbotapi.BotAPI
+	PhotoCache PhotosCache
 }
 
 const (
@@ -45,15 +46,25 @@ const (
 
 // Start method starts http server
 func (s *Server) Start() {
+	go s.updatePhotoCacheServer()
 	http.HandleFunc("/", s.handlerIndex)
 	http.ListenAndServe(s.Addr, nil)
 }
 
+func (s *Server) updatePhotoCacheServer() {
+	for {
+		go s.UpdatePhotoCache()
+		log.Printf("Update phtoto cache")
+		time.Sleep(time.Minute * 5)
+	}
+}
+
 func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 	lpath := strings.Split(r.URL.Path, "/")
-	for i, p := range lpath {
-		log.Printf("[%d] = [%s]", i, p)
-	}
+	// Debug paths
+	// for i, p := range lpath {
+	// 	log.Printf("[%d] = [%s]", i, p)
+	// }
 
 	w.WriteHeader(http.StatusOK)
 	if len(lpath) == 2 {
@@ -63,7 +74,7 @@ func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 	} else if len(lpath) == 3 {
 		if lpath[1] == "static" {
 			filename := lpath[2]
-			fullpath := fmt.Sprintf("static/%s", filename)
+			fullpath := getFileName(filename)
 			f, err := os.Open(fullpath)
 			if err != nil {
 				log.Printf(err.Error())
@@ -86,7 +97,6 @@ func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
 				w.Write(parseTemplate("Bad request"))
 				return
 			}
-			log.Printf("Group ID: %d", iID)
 			w.Write(parseTemplate(s.getMessages(iID)))
 		}
 	} else if len(lpath) == 4 {
@@ -142,8 +152,6 @@ func (s *Server) getMessages(chatID int64) (body string) {
 		return ""
 	}
 
-	photoCache := make(map[int]string)
-
 	for index, msg := range msgs {
 		//body += fmt.Sprintf("<li><a href=\"/%d/\">%s (%s %s)</a></li>", chat.ID, chat.UserName, chat.FirstName, chat.LastName)
 		t := time.Unix(int64(msg.Date), 0)
@@ -169,17 +177,7 @@ func (s *Server) getMessages(chatID int64) (body string) {
 			class = "class=\"even\""
 		}
 
-		var photo string
-
-		if p, ok := photoCache[msg.From.ID]; ok {
-			photo = p
-		} else {
-			photo, err = s.GetPhoto(int64(msg.From.ID))
-			if err != nil {
-				log.Printf(err.Error())
-			}
-			photoCache[msg.From.ID] = photo
-		}
+		photo := s.GetPhotoFileName(int64(msg.From.ID))
 
 		body += fmt.Sprintf(`
 			<tr %s>

@@ -22,6 +22,7 @@ func main() {
 
 	// start http server
 	s := httpserver.Server{Addr: ":8088", Bot: bot}
+	s.PhotoCache = make(httpserver.PhotosCache)
 	go s.Start()
 	//s.Start()
 
@@ -39,5 +40,6 @@ func main() {
 		}
 
 		go db.GoSaveMessage(update.Message)
+		go s.GetPhoto(int64(update.Message.From.ID))
 	}
 }
