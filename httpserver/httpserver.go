@@ -3,15 +3,14 @@ package httpserver
 import (
 	"RussianFedoraBot/db"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gopkg.in/telegram-bot-api.v4"
 )
 
@@ -20,11 +19,16 @@ type Server struct {
 	Addr       string
 	Bot        *tgbotapi.BotAPI
 	PhotoCache PhotosCache
+	FileCache  FilesCache
+	APIKey     string
 }
 
 const (
-	header = `<html>
+	header = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+	<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
     <head>
+		<title>Telegram logs</title>
 		<style type="text/css">
 			TH {
 		    	background: #a52a2a; /* Цвет фона */
@@ -38,78 +42,142 @@ const (
 			}
 		</style>
     </head>
-
-    <body>`
+    <body>
+	<h2><a href="/">Telegram logs</a></h2>`
 	footer = `</body>
     </html>`
+	tableBegin = `<table border="0"><caption>%s</caption>`
+	classEven  = `class="even"`
+	tableEnd   = `</table>`
 )
 
 // Start method starts http server
 func (s *Server) Start() {
+	s.UpdatePhotoCache()
 	go s.updatePhotoCacheServer()
-	http.HandleFunc("/", s.handlerIndex)
-	http.ListenAndServe(s.Addr, nil)
+
+	r := gin.Default()
+
+	r.StaticFS("/static", http.Dir("static"))
+	r.GET("/chat/:chat_id/:year/:month/:day", s.dayPage)
+	r.GET("/chat/:chat_id/:year/:month", s.monthPage)
+	r.GET("/chat/:chat_id/:year", s.yearPage)
+	r.GET("/chat/:chat_id/", s.chatPage)
+
+	r.GET("/", s.mainPage)
+
+	r.Run(s.Addr)
+}
+
+func (s *Server) mainPage(c *gin.Context) {
+	page := parseTemplate(s.getMain())
+	c.Data(http.StatusOK, "text/html", page)
+}
+
+func (s *Server) chatPage(c *gin.Context) {
+	strChatID := c.Param("chat_id")
+	chatID, err := strconv.ParseInt(strChatID, 10, 64)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+
+	page := parseTemplate(s.getYears(chatID))
+	// page := parseTemplate(s.getMessages(chatID))
+	c.Data(http.StatusOK, "text/html", page)
+}
+
+func (s *Server) yearPage(c *gin.Context) {
+	strChatID := c.Param("chat_id")
+	strYear := c.Param("year")
+	chatID, err := strconv.ParseInt(strChatID, 10, 64)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+	year, err := strconv.Atoi(strYear)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+
+	page := parseTemplate(s.getMonths(chatID, year))
+	// page := parseTemplate(s.getMessages(chatID))
+	c.Data(http.StatusOK, "text/html", page)
+}
+
+func (s *Server) monthPage(c *gin.Context) {
+	strChatID := c.Param("chat_id")
+	strYear := c.Param("year")
+	strMonth := c.Param("month")
+	chatID, err := strconv.ParseInt(strChatID, 10, 64)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+	year, err := strconv.Atoi(strYear)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+	month, err := strconv.Atoi(strMonth)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+
+	page := parseTemplate(s.getDates(chatID, year, month))
+	c.Data(http.StatusOK, "text/html", page)
+}
+
+func (s *Server) dayPage(c *gin.Context) {
+	strChatID := c.Param("chat_id")
+	strYear := c.Param("year")
+	strMonth := c.Param("month")
+	strDay := c.Param("day")
+	chatID, err := strconv.ParseInt(strChatID, 10, 64)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+	year, err := strconv.Atoi(strYear)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+	month, err := strconv.Atoi(strMonth)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+	day, err := strconv.Atoi(strDay)
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+
+	beginTime := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
+	endTime := time.Date(year, time.Month(month), day, 23, 59, 59, 100, time.Local)
+
+	page := parseTemplate(s.getMessages(chatID, beginTime, endTime))
+	c.Data(http.StatusOK, "text/html", page)
 }
 
 func (s *Server) updatePhotoCacheServer() {
 	for {
-		go s.UpdatePhotoCache()
-		log.Printf("Update phtoto cache")
 		time.Sleep(time.Minute * 5)
-	}
-}
-
-func (s *Server) handlerIndex(w http.ResponseWriter, r *http.Request) {
-	lpath := strings.Split(r.URL.Path, "/")
-	// Debug paths
-	// for i, p := range lpath {
-	// 	log.Printf("[%d] = [%s]", i, p)
-	// }
-
-	w.WriteHeader(http.StatusOK)
-	if len(lpath) == 2 {
-		if lpath[0] == "" && lpath[1] == "" {
-			w.Write(parseTemplate(s.getMain()))
-		}
-	} else if len(lpath) == 3 {
-		if lpath[1] == "static" {
-			filename := lpath[2]
-			fullpath := getFileName(filename)
-			f, err := os.Open(fullpath)
-			if err != nil {
-				log.Printf(err.Error())
-				return
-			}
-			defer f.Close()
-			w.Header().Add("content-type", "image/jpg")
-			data, err := ioutil.ReadAll(f)
-			if err != nil {
-				log.Printf(err.Error())
-				return
-			}
-			w.Write(data)
-			return
-		} else if lpath[1] != "" {
-			iID, err := strconv.ParseInt(lpath[1], 10, 64)
-			if err != nil {
-				log.Printf(err.Error())
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write(parseTemplate("Bad request"))
-				return
-			}
-			w.Write(parseTemplate(s.getMessages(iID)))
-		}
-	} else if len(lpath) == 4 {
+		s.UpdatePhotoCache()
+		log.Printf("Update phtoto cache started...")
 	}
 }
 
 func parseTemplate(body string) []byte {
-	res := fmt.Sprintf("%s\n%s\n%s", header, body, footer)
-	return []byte(res)
+	result := fmt.Sprintf("%s\n%s\n%s", header, body, footer)
+	return []byte(result)
 }
 
 func (s *Server) getMain() (body string) {
-	body += "<h1>Chat list</h1><ul>"
+	body += fmt.Sprintf(tableBegin, "Chats")
 
 	chats, err := db.GetChats()
 	if err != nil {
@@ -117,7 +185,7 @@ func (s *Server) getMain() (body string) {
 		return ""
 	}
 
-	for _, chat := range chats {
+	for index, chat := range chats {
 		chatName := chat.Title
 		if chat.Title == "" {
 			chatName = chat.UserName
@@ -131,9 +199,18 @@ func (s *Server) getMain() (body string) {
 			chatName += fmt.Sprintf(" (%s)", names)
 		}
 
-		body += fmt.Sprintf("<li><a href=\"/%d/\">%s</a></li>", chat.ID, chatName)
+		class := ""
+		if index%2 == 0 {
+			class = classEven
+		}
+
+		body += fmt.Sprintf(`
+			<tr %s>
+				<td class="la"><a href="/chat/%d/">%s</a></td>
+			</tr>`, class, chat.ID, chatName)
+
 	}
-	body += "</ul>"
+	body += tableEnd
 
 	return
 }
@@ -143,17 +220,16 @@ func getDate(id int64) (body string) {
 	return
 }
 
-func (s *Server) getMessages(chatID int64) (body string) {
-	body += "<table border=0><caption>Messages list</caption>"
+func (s *Server) getMessages(chatID int64, beginTime, endTime time.Time) (body string) {
+	body += fmt.Sprintf(tableBegin, "Messages")
 
-	msgs, err := db.GetMessages(chatID)
+	msgs, err := db.GetMessagesByDate(chatID, beginTime, endTime)
 	if err != nil {
 		log.Printf("Error in getMessages: %s", err)
 		return ""
 	}
 
 	for index, msg := range msgs {
-		//body += fmt.Sprintf("<li><a href=\"/%d/\">%s (%s %s)</a></li>", chat.ID, chat.UserName, chat.FirstName, chat.LastName)
 		t := time.Unix(int64(msg.Date), 0)
 		name := msg.From.UserName
 		if msg.From.UserName == "" {
@@ -174,20 +250,119 @@ func (s *Server) getMessages(chatID int64) (body string) {
 
 		class := ""
 		if index%2 == 0 {
-			class = "class=\"even\""
+			class = classEven
 		}
 
 		photo := s.GetPhotoFileName(int64(msg.From.ID))
+		timeStr := t.Format("15:04:05")
+
+		if msg.Audio != nil {
+			msgText += fmt.Sprintf(`<p><a href="/%s">Audio in message</a></p>`, s.GetFileNameByFileID(msg.Chat.ID, msg.Audio.FileID))
+		}
+		if msg.Document != nil {
+			msgText += fmt.Sprintf(`<p><a href="/%s">Document in message</a></p>`, s.GetFileNameByFileID(msg.Chat.ID, msg.Document.FileID))
+		}
+		if msg.Photo != nil {
+			msgText += "<p>"
+			f := (*msg.Photo)[len(*msg.Photo)-1]
+			//for _, f := range *msg.Photo {
+			photoName := s.GetFileNameByFileID(msg.Chat.ID, f.FileID)
+			msgText += fmt.Sprintf(`<p><a href="/%s"><img src="/%s"></img></a>`, photoName, photoName)
+			//}
+			msgText += "</p>"
+		}
+		if msg.Sticker != nil {
+			msgText += fmt.Sprintf(`<p><img src="/%s"></img></p>`, s.GetFileNameByFileID(msg.Chat.ID, msg.Sticker.FileID))
+		}
+		if msg.Video != nil {
+			msgText += fmt.Sprintf(`<p><a href="/%s">Video in message</a></p>`, s.GetFileNameByFileID(msg.Chat.ID, msg.Video.FileID))
+		}
+		if msg.Voice != nil {
+			msgText += fmt.Sprintf(`<p><a href="/%s">Voice in message</a></p>`, s.GetFileNameByFileID(msg.Chat.ID, msg.Voice.FileID))
+		}
 
 		body += fmt.Sprintf(`
 			<tr %s>
-				<td class="la" align="center" width='5%%'><img src="../%s" height="30px" width="30px"></img></td>
-				<td class="la" width='12%%'>%s</td>
+				<td class="la" align="center" width='3%%'><img src="/%s" height="30px" width="30px"></img></td>
+				<td class="la" align="center" width='5%%'><a id="%s" name="%s" href="#%s" class="time">%s</td>
 				<td class="la" width='17%%'><strong>%s</strong></td>
-				<td class="la" >%s</td>
-			</tr>`, class, photo, t.String(), name, msgText)
+				<td class="la">%s</td>
+				<td style="display:none;">%d</td>
+			</tr>`, class, photo, timeStr, timeStr, timeStr, timeStr, name, msgText, msg.MessageID)
 	}
-	body += "</table>"
+	body += tableEnd
+
+	return
+}
+
+func (s *Server) getYears(chatID int64) (body string) {
+	body += fmt.Sprintf(tableBegin, "Years")
+
+	dates, err := db.GetYears(chatID)
+	if err != nil {
+		log.Printf("Error in GetYears for chat %d: %s", chatID, err)
+		return ""
+	}
+	for index, date := range dates {
+		class := ""
+		if index%2 == 0 {
+			class = classEven
+		}
+		body += fmt.Sprintf(`
+			<tr %s>
+				<td class="la"><a href="/chat/%d/%s">%s</a></td>
+			</tr>`, class, chatID, date, date)
+
+	}
+	body += tableEnd
+
+	return
+}
+
+func (s *Server) getMonths(chatID int64, year int) (body string) {
+	body += fmt.Sprintf(tableBegin, "Months")
+
+	dates, err := db.GetMonthList(chatID, year)
+	if err != nil {
+		log.Printf("Error in GetYears for chat %d: %s", chatID, err)
+		return ""
+	}
+	for index, date := range dates {
+		class := ""
+		if index%2 == 0 {
+			class = classEven
+		}
+		body += fmt.Sprintf(`
+			<tr %s>
+				<td class="la" ><a href="/chat/%d/%d/%d">%s</a></td>
+			</tr>`, class, chatID, year, date, date.String())
+
+	}
+	body += tableEnd
+
+	return
+}
+
+func (s *Server) getDates(chatID int64, year int, month int) (body string) {
+	body += fmt.Sprintf(tableBegin, "Dates")
+
+	dates, err := db.GetDates(chatID, year, month)
+	if err != nil {
+		log.Printf("Error in GetYears for chat %d: %s", chatID, err)
+		return ""
+	}
+	for index, date := range dates {
+		class := ""
+		if index%2 == 0 {
+			class = classEven
+		}
+		body += fmt.Sprintf(`
+			<tr %s>
+				<td class="la" ><a href="/chat/%d/%d/%d/%d">%02d</a></td>
+			</tr>`, class, chatID, year, month, date, date)
+
+	}
+	body += tableEnd
 
 	return
 }

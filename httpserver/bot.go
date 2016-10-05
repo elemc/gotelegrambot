@@ -7,12 +7,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/telegram-bot-api.v4"
 )
 
 // PhotosCache type for store users photo filenames by id
 type PhotosCache map[int64]string
+
+// FilesCache type for store files
+type FilesCache map[string]string
 
 // UpdatePhotoCache function update photos cache of users
 func (s *Server) UpdatePhotoCache() {
@@ -25,7 +29,7 @@ func (s *Server) UpdatePhotoCache() {
 	s.PhotoCache = make(PhotosCache) // new cache
 
 	for _, user := range users {
-		go s.GetPhoto(int64(user.ID))
+		s.GetPhoto(int64(user.ID))
 	}
 }
 
@@ -36,6 +40,23 @@ func (s *Server) GetPhotoFileName(userID int64) (result string) {
 	} else {
 		result = getFileName("nobody.png")
 	}
+	return
+}
+
+// GetFileNameByFileID returns file name by index
+func (s *Server) GetFileNameByFileID(chatID int64, fileID string) (filename string) {
+	f, err := db.GetFile(fileID, chatID)
+	if err != nil {
+		// try to download it
+		s.GetFile(fileID, chatID)
+		f, err = db.GetFile(fileID, chatID)
+		if err != nil {
+			log.Printf("Error in GetFileNameByFileID with FileID [%s]: %s", fileID, err)
+			return "missing-data"
+		}
+	}
+	filename = fmt.Sprintf("static/%s", f.FilePath)
+
 	return
 }
 
@@ -66,6 +87,40 @@ func (s *Server) GetPhoto(chatID int64) {
 	s.PhotoCache[chatID] = filename
 
 	return
+}
+
+// GetFile function for get file from telegram
+func (s *Server) GetFile(fileID string, chatID int64) {
+	fc := tgbotapi.FileConfig{}
+	fc.FileID = fileID
+	f, err := s.Bot.GetFile(fc)
+	if err != nil {
+		log.Printf("Error in GetFile for FileID [%s]: %s", fileID, err)
+		return
+	}
+
+	log.Printf(f.FilePath)
+
+	// check directory
+	dir := filepath.Dir(f.FilePath)
+	path := filepath.Join("static", dir)
+	err = os.MkdirAll(path, 0755)
+	if err != nil {
+		log.Printf("Error in MkdirAll for FileID [%s]: %s", fileID, err)
+		return
+	}
+
+	filename := filepath.Join("static", f.FilePath)
+	err = downloadImage(f.Link(s.APIKey), filename)
+	if err != nil {
+		log.Printf("Error in MkdirAll for FileID [%s]: %s", fileID, err)
+		return
+	}
+	//s.FileCache[f.FileID] = filepath.Join("static", f.FilePath)
+	err = db.SaveFile(&f, chatID)
+	if err != nil {
+		log.Printf("Error in SaveFile for FileID [%s]: %s", fileID, err)
+	}
 }
 
 func getFileName(fn string) string {

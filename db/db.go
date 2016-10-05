@@ -4,23 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
+	"time"
 
 	couchbase "github.com/couchbase/gocb"
 	"gopkg.in/telegram-bot-api.v4"
 )
 
-const (
-	couchbaseCluster = "couchbase://couchbase"
-	couchbaseBucket  = "RussianFedoraBot"
-	couchbaseSecret  = "3510"
-)
+// const (
+// 	couchbaseCluster = "couchbase://couchbase"
+// 	couchbaseBucket  = "RussianFedoraBot"
+// 	couchbaseSecret  = "3510"
+// )
 
 var (
 	cluster *couchbase.Cluster
 	bucket  *couchbase.Bucket
 )
 
-func initCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
+func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	cluster, err := couchbase.Connect(couchbaseCluster)
 	if err != nil {
 		log.Fatalf("Cannot connect to cluster: %s", err)
@@ -31,9 +33,9 @@ func initCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	}
 }
 
-func init() {
-	initCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret)
-}
+// func init() {
+// 	initCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret)
+// }
 
 // GoSaveMessage is a shell method for goroutine SaveMessage
 func GoSaveMessage(msg *tgbotapi.Message) {
@@ -102,6 +104,35 @@ func SaveUser(user *tgbotapi.User) (err error) {
 	cUser.Type = "user"
 
 	_, err = bucket.Upsert(key, &cUser, 0)
+	return
+}
+
+// SaveFile method save user to database
+func SaveFile(file *tgbotapi.File, chatID int64) (err error) {
+	key := fmt.Sprintf("file:%d:%s", chatID, file.FileID)
+
+	type couchfile struct {
+		tgbotapi.File
+		Type string `json:"type"`
+	}
+	cFile := couchfile{}
+
+	data, err := json.Marshal(file)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(data, &cFile)
+	cFile.Type = "file"
+
+	_, err = bucket.Upsert(key, &cFile, 0)
+	return
+}
+
+// GetFile returns file json from couchbase
+func GetFile(fileID string, chatID int64) (f *tgbotapi.File, err error) {
+	key := fmt.Sprintf("file:%d:%s", chatID, fileID)
+	f = new(tgbotapi.File)
+	_, err = bucket.Get(key, f)
 	return
 }
 
@@ -196,6 +227,40 @@ func GetMessages(chatID int64) (messages []*tgbotapi.Message, err error) {
 	return
 }
 
+// GetMessagesByDate returns chat list on date
+func GetMessagesByDate(chatID int64, beginTime, endTime time.Time) (messages []*tgbotapi.Message, err error) {
+	type couchmsg struct {
+		Msg tgbotapi.Message `json:"RussianFedoraBot"`
+	}
+
+	queryStr := fmt.Sprintf("SELECT * FROM RussianFedoraBot WHERE type='message' AND chat.id=%d AND date >= %d AND date <= %d ORDER BY date", chatID, beginTime.Unix(), endTime.Unix())
+	query := couchbase.NewN1qlQuery(queryStr)
+	res, err := bucket.ExecuteN1qlQuery(query, nil)
+	if err != nil {
+		return
+	}
+
+	//var data interface{}
+
+	chat := couchmsg{}
+	for res.Next(&chat) {
+		data, err := json.Marshal(chat.Msg)
+		if err != nil {
+			log.Printf("Error in marshal GetMessages: %s", err)
+			continue
+		}
+		oMsg := new(tgbotapi.Message)
+		err = json.Unmarshal(data, oMsg)
+		if err != nil {
+			log.Printf("Error in unmarshal GetMessages: %s", err)
+			continue
+		}
+		messages = append(messages, oMsg)
+	}
+
+	return
+}
+
 // GetUsers returns chat list
 func GetUsers() (users []*tgbotapi.User, err error) {
 	//query := couchbase.NewN1qlQuery("SELECT first_name, id, last_name, title, type, username FROM RussianFedoraBot WHERE type='chat'")
@@ -230,4 +295,116 @@ func GetUsers() (users []*tgbotapi.User, err error) {
 	}
 
 	return
+}
+
+func getDates(chatID int64) (result []time.Time, err error) {
+	type couchdate struct {
+		Date int64 `json:"date"`
+	}
+
+	queryStr := fmt.Sprintf("SELECT date FROM RussianFedoraBot WHERE type='message' AND chat.id=%d ORDER BY date", chatID)
+	query := couchbase.NewN1qlQuery(queryStr)
+	res, err := bucket.ExecuteN1qlQuery(query, nil)
+	if err != nil {
+		return
+	}
+
+	date := couchdate{}
+	for res.Next(&date) {
+		tDate := time.Unix(date.Date, 0)
+		result = append(result, tDate)
+	}
+	return
+}
+
+func appendIfNotFound(list []string, s string) []string {
+	found := false
+	for _, value := range list {
+		if value == s {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		list = append(list, s)
+	}
+	return list
+}
+
+func appendIfNotFoundMonth(list []time.Month, s time.Month) []time.Month {
+	found := false
+	for _, value := range list {
+		if value == s {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		list = append(list, s)
+	}
+	return list
+}
+
+func appendIfNotFoundInt(list []int, s int) []int {
+	found := false
+	for _, value := range list {
+		if value == s {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		list = append(list, s)
+	}
+	return list
+}
+
+// GetYears function returns years msg date from chat messages
+func GetYears(chatID int64) (result []string, err error) {
+	listDates, err := getDates(chatID)
+	if err != nil {
+		return
+	}
+	for _, t := range listDates {
+		s := strconv.Itoa(t.Year())
+		result = appendIfNotFound(result, s)
+	}
+	return
+}
+
+// GetMonthList function returns month list msg date from chat messages and year
+func GetMonthList(chatID int64, year int) (result []time.Month, err error) {
+	listDates, err := getDates(chatID)
+	if err != nil {
+		return
+	}
+	for _, t := range listDates {
+		if t.Year() != year {
+			continue
+		}
+
+		result = appendIfNotFoundMonth(result, t.Month())
+	}
+	return
+
+}
+
+// GetDates function returns month list msg date from chat messages and year
+func GetDates(chatID int64, year int, month int) (result []int, err error) {
+	listDates, err := getDates(chatID)
+	if err != nil {
+		return
+	}
+	//log.Printf("Year: %d\tMonth: %d", year, month)
+	for _, t := range listDates {
+		//log.Printf("Year: %d\tMonth: %d", t.Year(), t.Month())
+		if t.Year() == year && t.Month() == time.Month(month) {
+			result = appendIfNotFoundInt(result, t.Day())
+		}
+	}
+	return
+
 }
