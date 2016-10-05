@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"RussianFedoraBot/db"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/elemc/gotelegrambot/db"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/telegram-bot-api.v4"

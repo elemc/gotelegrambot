@@ -1,13 +1,14 @@
 package httpserver
 
 import (
-	"RussianFedoraBot/db"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/elemc/gotelegrambot/db"
 
 	"gopkg.in/telegram-bot-api.v4"
 )

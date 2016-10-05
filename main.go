@@ -1,10 +1,11 @@
 package main
 
 import (
-	"RussianFedoraBot/db"
-	"RussianFedoraBot/httpserver"
 	"flag"
 	"log"
+
+	"github.com/elemc/gotelegrambot/db"
+	"github.com/elemc/gotelegrambot/httpserver"
 
 	"gopkg.in/telegram-bot-api.v4"
 )
