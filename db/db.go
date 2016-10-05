@@ -16,6 +16,7 @@ var (
 	bucket  *couchbase.Bucket
 )
 
+// InitCouchbase function initialize couchbase bucket with parameters
 func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	cluster, err := couchbase.Connect(couchbaseCluster)
 	if err != nil {
