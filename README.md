@@ -9,7 +9,7 @@ Compile
 -------
 
 ### Requires
-- golang >= 1.6.3 (http://www.golang.org)
+- golang >= 1.5.1 (http://www.golang.org)
 - git
 - installed Couchbase cluster (http://couchbase.com)
 - github.com/couchbase/gocb

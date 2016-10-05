@@ -2,7 +2,7 @@ language: go
 
 go:
     - 1.5.1
-    - release
+    - 1.6.3
     - tip
 
 go_import_path: github.com/elemc/gotelegrambot
