@@ -40,6 +40,9 @@ func main() {
 		}
 
 		go db.GoSaveMessage(update.Message)
-		go s.GetPhoto(int64(update.Message.From.ID))
+		id := int64(update.Message.From.ID)
+		if _, ok := s.PhotoCache[id]; !ok {
+			go s.GetPhoto(id)
+		}
 	}
 }
