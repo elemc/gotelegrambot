@@ -30,7 +30,7 @@ func LoadConfig() {
 	settings.APIKey = ""
 	settings.Addr = ":8088"
 	settings.Couchbase.Cluster = "couchbase://couchbase"
-	settings.Couchbase.Bucket = "RussianFedoraBot"
+	settings.Couchbase.Bucket = "default"
 	settings.Couchbase.Secret = ""
 
 	f, err := os.Open(configFileName)
