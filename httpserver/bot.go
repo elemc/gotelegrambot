@@ -44,7 +44,7 @@ func (s *Server) GetPhoto(chatID int64) {
 	config := tgbotapi.NewUserProfilePhotos(int(chatID))
 	photos, err := s.Bot.GetUserProfilePhotos(config)
 	if err != nil {
-		log.Printf(err.Error())
+		log.Printf("Error in GetPhoto for ID %d: %s", chatID, err.Error())
 		return
 	}
 	if photos.TotalCount == 0 {
