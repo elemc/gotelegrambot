@@ -43,8 +43,8 @@ func main() {
 	s.PhotoCache = make(httpserver.PhotosCache)
 	s.FileCache = make(httpserver.FilesCache)
 	s.APIKey = settings.APIKey
-	//go s.Start()
-	s.Start()
+	go s.Start()
+	//s.Start()
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
