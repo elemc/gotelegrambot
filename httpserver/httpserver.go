@@ -49,7 +49,7 @@ const (
     <body>
 	<h2><a href="/">Telegram logs</a></h2>`
 	footer = `</body>
-    </html>`
+</html>`
 	tableBegin = `<table border="0"><caption>%s</caption>`
 	classEven  = `class="even"`
 	tableEnd   = `</table>`

@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	cluster *couchbase.Cluster
-	bucket  *couchbase.Bucket
+	cluster    *couchbase.Cluster
+	bucket     *couchbase.Bucket
+	bucketName string
 )
 
 // InitCouchbase function initialize couchbase bucket with parameters
@@ -26,11 +27,8 @@ func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	if err != nil {
 		log.Fatalf("Cannot open bucket: %s", err)
 	}
+	bucketName = couchbaseBucket
 }
-
-// func init() {
-// 	initCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret)
-// }
 
 // GoSaveMessage is a shell method for goroutine SaveMessage
 func GoSaveMessage(msg *tgbotapi.Message) {
@@ -154,13 +152,11 @@ func SaveChat(chat *tgbotapi.Chat) (err error) {
 
 // GetChats returns chat list
 func GetChats() (chats []*tgbotapi.Chat, err error) {
-	//query := couchbase.NewN1qlQuery("SELECT first_name, id, last_name, title, type, username FROM RussianFedoraBot WHERE type='chat'")
-
 	type couchchat struct {
 		Msg tgbotapi.Chat `json:"RussianFedoraBot"`
 	}
 
-	query := couchbase.NewN1qlQuery("SELECT * FROM RussianFedoraBot WHERE type='chat'")
+	query := couchbase.NewN1qlQuery(fmt.Sprintf("SELECT * FROM %s WHERE type='chat'", bucketName))
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
 		return
@@ -194,7 +190,7 @@ func GetMessages(chatID int64) (messages []*tgbotapi.Message, err error) {
 		Msg tgbotapi.Message `json:"RussianFedoraBot"`
 	}
 
-	queryStr := fmt.Sprintf("SELECT * FROM RussianFedoraBot WHERE type='message' AND chat.id=%d ORDER BY date", chatID)
+	queryStr := fmt.Sprintf("SELECT * FROM %s WHERE type='message' AND chat.id=%d ORDER BY date", bucketName, chatID)
 	query := couchbase.NewN1qlQuery(queryStr)
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
@@ -228,7 +224,7 @@ func GetMessagesByDate(chatID int64, beginTime, endTime time.Time) (messages []*
 		Msg tgbotapi.Message `json:"RussianFedoraBot"`
 	}
 
-	queryStr := fmt.Sprintf("SELECT * FROM RussianFedoraBot WHERE type='message' AND chat.id=%d AND date >= %d AND date <= %d ORDER BY date", chatID, beginTime.Unix(), endTime.Unix())
+	queryStr := fmt.Sprintf("SELECT * FROM %s WHERE type='message' AND chat.id=%d AND date >= %d AND date <= %d ORDER BY date", bucketName, chatID, beginTime.Unix(), endTime.Unix())
 	query := couchbase.NewN1qlQuery(queryStr)
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
@@ -258,13 +254,11 @@ func GetMessagesByDate(chatID int64, beginTime, endTime time.Time) (messages []*
 
 // GetUsers returns chat list
 func GetUsers() (users []*tgbotapi.User, err error) {
-	//query := couchbase.NewN1qlQuery("SELECT first_name, id, last_name, title, type, username FROM RussianFedoraBot WHERE type='chat'")
-
 	type couchuser struct {
 		User tgbotapi.User `json:"RussianFedoraBot"`
 	}
 
-	query := couchbase.NewN1qlQuery("SELECT * FROM RussianFedoraBot WHERE type='user'")
+	query := couchbase.NewN1qlQuery(fmt.Sprintf("SELECT * FROM %s WHERE type='user'", bucketName))
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
 		return
@@ -297,7 +291,7 @@ func getDates(chatID int64) (result []time.Time, err error) {
 		Date int64 `json:"date"`
 	}
 
-	queryStr := fmt.Sprintf("SELECT date FROM RussianFedoraBot WHERE type='message' AND chat.id=%d ORDER BY date", chatID)
+	queryStr := fmt.Sprintf("SELECT date FROM %s WHERE type='message' AND chat.id=%d ORDER BY date", bucketName, chatID)
 	query := couchbase.NewN1qlQuery(queryStr)
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
