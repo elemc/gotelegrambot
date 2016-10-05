@@ -5,6 +5,10 @@ go:
     - 1.6.3
     - tip
 
+os:
+    - linux
+    - osx
+
 go_import_path: github.com/elemc/gotelegrambot
 
 install:
