@@ -153,10 +153,10 @@ func SaveChat(chat *tgbotapi.Chat) (err error) {
 // GetChats returns chat list
 func GetChats() (chats []*tgbotapi.Chat, err error) {
 	type couchchat struct {
-		Msg tgbotapi.Chat `json:"RussianFedoraBot"`
+		Msg tgbotapi.Chat `json:"bot"`
 	}
 
-	query := couchbase.NewN1qlQuery(fmt.Sprintf("SELECT * FROM %s WHERE type='chat'", bucketName))
+	query := couchbase.NewN1qlQuery(fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='chat'", bucketName))
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
 		return
@@ -187,10 +187,10 @@ func GetChats() (chats []*tgbotapi.Chat, err error) {
 // GetMessages returns chat list
 func GetMessages(chatID int64) (messages []*tgbotapi.Message, err error) {
 	type couchmsg struct {
-		Msg tgbotapi.Message `json:"RussianFedoraBot"`
+		Msg tgbotapi.Message `json:"bot"`
 	}
 
-	queryStr := fmt.Sprintf("SELECT * FROM %s WHERE type='message' AND chat.id=%d ORDER BY date", bucketName, chatID)
+	queryStr := fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='message' AND chat.id=%d ORDER BY date", bucketName, chatID)
 	query := couchbase.NewN1qlQuery(queryStr)
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
@@ -221,10 +221,10 @@ func GetMessages(chatID int64) (messages []*tgbotapi.Message, err error) {
 // GetMessagesByDate returns chat list on date
 func GetMessagesByDate(chatID int64, beginTime, endTime time.Time) (messages []*tgbotapi.Message, err error) {
 	type couchmsg struct {
-		Msg tgbotapi.Message `json:"RussianFedoraBot"`
+		Msg tgbotapi.Message `json:"bot"`
 	}
 
-	queryStr := fmt.Sprintf("SELECT * FROM %s WHERE type='message' AND chat.id=%d AND date >= %d AND date <= %d ORDER BY date", bucketName, chatID, beginTime.Unix(), endTime.Unix())
+	queryStr := fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='message' AND chat.id=%d AND date >= %d AND date <= %d ORDER BY date", bucketName, chatID, beginTime.Unix(), endTime.Unix())
 	query := couchbase.NewN1qlQuery(queryStr)
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
@@ -255,10 +255,10 @@ func GetMessagesByDate(chatID int64, beginTime, endTime time.Time) (messages []*
 // GetUsers returns chat list
 func GetUsers() (users []*tgbotapi.User, err error) {
 	type couchuser struct {
-		User tgbotapi.User `json:"RussianFedoraBot"`
+		User tgbotapi.User `json:"bot"`
 	}
 
-	query := couchbase.NewN1qlQuery(fmt.Sprintf("SELECT * FROM %s WHERE type='user'", bucketName))
+	query := couchbase.NewN1qlQuery(fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='user'", bucketName))
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
 		return
