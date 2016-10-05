@@ -29,13 +29,14 @@ const (
 	<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
     <head>
 		<title>Telegram logs</title>
+		<meta charset="utf-8" />
 		<style type="text/css">
 			TH {
-		    	background: #a52a2a; /* Цвет фона */
+		    	background: #FFFFFF; /* Цвет фона */
 		    	color: white; /* Цвет текста */
 		   	}
 		   	TR.even {
-    			background: #fff8dc;
+    			background: #F0F4F7;
    			}
 			P.reply {
 				color: grey;
@@ -245,7 +246,9 @@ func (s *Server) getMessages(chatID int64, beginTime, endTime time.Time) (body s
 		msgText = re.ReplaceAllString(msgText, `<a href="$0">$0</a>`)
 
 		if msg.ReplyToMessage != nil {
-			msgText = fmt.Sprintf("<p class=\"reply\"> > %s</p>\n<p>%s</p>", msg.ReplyToMessage.Text, msgText)
+			lt := time.Unix(int64(msg.ReplyToMessage.Date), 0)
+			replyLink := fmt.Sprintf("/chat/%d/%d/%d/%d#%s", msg.Chat.ID, lt.Year(), lt.Month(), lt.Day(), lt.Format("15:04:05"))
+			msgText = fmt.Sprintf(`<p class="reply"> <a href="%s">></a> %s</p>\n<p>%s</p>`, replyLink, msg.ReplyToMessage.Text, msgText)
 		}
 
 		class := ""
