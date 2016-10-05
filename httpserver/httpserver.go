@@ -36,7 +36,7 @@ const (
 		    	color: white; /* Цвет текста */
 		   	}
 			TD {
-				vertical-align: text-top;
+				vertical-align: top;
 			}
 		   	TR.even {
     			background: #F0F4F7;
