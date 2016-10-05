@@ -1,4 +1,6 @@
 [![Build Status](https://travis-ci.org/elemc/gotelegrambot.svg?branch=master)](https://travis-ci.org/elemc/gotelegrambot)
+[![Go Report Card](https://goreportcard.com/badge/github.com/elemc/gotelegrambot)](https://goreportcard.com/report/github.com/elemc/gotelegrambot)
+[![GoDoc](https://godoc.org/github.com/elemc/gotelegrambot?status.svg)](https://godoc.org/github.com/elemc/gotelegrambot)
 
 gotelegrambot
 =============
