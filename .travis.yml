@@ -1,0 +1,11 @@
+language: go
+
+go:
+    - 1.5.1
+    - release
+    - tip
+
+go_import_path:
+    - github.com/couchbase/gocb
+    - gopkg.in/telegram-bot-api.v4
+    - github.com/gin-gonic/gin

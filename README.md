@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/elemc/gotelegrambot.svg?branch=master)](https://travis-ci.org/elemc/gotelegrambot)
+
 gotelegrambot
 =============
 
@@ -7,15 +9,16 @@ Compile
 -------
 
 ### Requires
-- golang >= 1.6.3 (www.golang.org)
+- golang >= 1.6.3 (http://www.golang.org)
 - git
+- installed Couchbase cluster (http://couchbase.com)
 - github.com/couchbase/gocb
 - gopkg.in/telegram-bot-api.v4
 - github.com/gin-gonic/gin
 
 ### Download
-$ github.com/couchbase/gocb gopkg.in/telegram-bot-api.v4 github.com/gin-gonic/gin
-$ go get github.com/elemc/gotelegrambot
+- $ github.com/couchbase/gocb gopkg.in/telegram-bot-api.v4 github.com/gin-gonic/gin
+- $ go get github.com/elemc/gotelegrambot
 
 ### Build
 $ go build github.com/elemc/gotelegrambot
