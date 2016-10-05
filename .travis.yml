@@ -11,3 +11,5 @@ install:
     - go get github.com/couchbase/gocb
     - go get gopkg.in/telegram-bot-api.v4
     - go get github.com/gin-gonic/gin
+
+script: go build
