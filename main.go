@@ -14,10 +14,6 @@ var (
 	settings Settings
 )
 
-const (
-//apiKey = "290179858:AAFvx-ekOd7OkPkQYnGVggakR12BemcpxVI"
-)
-
 func init() {
 	LoadConfig()
 

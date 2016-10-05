@@ -11,12 +11,6 @@ import (
 	"gopkg.in/telegram-bot-api.v4"
 )
 
-// const (
-// 	couchbaseCluster = "couchbase://couchbase"
-// 	couchbaseBucket  = "RussianFedoraBot"
-// 	couchbaseSecret  = "3510"
-// )
-
 var (
 	cluster *couchbase.Cluster
 	bucket  *couchbase.Bucket
