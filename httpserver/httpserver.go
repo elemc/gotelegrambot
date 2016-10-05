@@ -29,12 +29,15 @@ const (
 	<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
     <head>
 		<title>Telegram logs</title>
-		<meta charset="utf-8" />
+		<meta charset="utf-8;" />
 		<style type="text/css">
 			TH {
 		    	background: #FFFFFF; /* Цвет фона */
 		    	color: white; /* Цвет текста */
 		   	}
+			TD {
+				vertical-align: text-top;
+			}
 		   	TR.even {
     			background: #F0F4F7;
    			}

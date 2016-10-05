@@ -44,7 +44,7 @@ func main() {
 	s.FileCache = make(httpserver.FilesCache)
 	s.APIKey = settings.APIKey
 	go s.Start()
-	//s.Start()
+	// s.Start()
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
