@@ -183,9 +183,10 @@ func (s *Server) SendError(msgText string, msg *tgbotapi.Message) {
 // UserIsAdmin returns user is admin or not
 func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err error) {
 	cc := tgbotapi.ChatConfig{}
-	cc.ChatID = chat.ID
-	if chat.IsSuperGroup() {
+	if chat.IsSuperGroup() || chat.IsGroup() {
 		cc.SuperGroupUsername = chat.UserName
+	} else {
+		cc.ChatID = chat.ID
 	}
 
 	admins, err := s.Bot.GetChatAdministrators(cc)
@@ -235,9 +236,10 @@ func (s *Server) BanUser(msg *tgbotapi.Message) {
 
 	config := tgbotapi.ChatMemberConfig{}
 	config.ChatID = msg.Chat.ID
-	config.UserID = user.ID
-	if msg.Chat.IsSuperGroup() {
+	if msg.Chat.IsSuperGroup() || msg.Chat.IsGroup() {
 		config.SuperGroupUsername = msg.Chat.UserName
+	} else {
+		config.UserID = user.ID
 	}
 	resp, err := s.Bot.KickChatMember(config)
 	if err != nil {
