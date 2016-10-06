@@ -63,7 +63,7 @@ func (s *Server) GetFileNameByFileID(chatID int64, fileID string) (filename stri
 	return
 }
 
-// GetPhoto fucntion download user photo and return file name for html tag img
+// GetPhoto function download user photo and return file name for html tag img
 func (s *Server) GetPhoto(chatID int64) {
 	config := tgbotapi.NewUserProfilePhotos(int(chatID))
 	photos, err := s.Bot.GetUserProfilePhotos(config)
@@ -169,7 +169,9 @@ func (s *Server) CommandHandler(msg *tgbotapi.Message) {
 	case "ping":
 		s.SendPing(msg)
 	case "ban":
-		s.BanUser(msg)
+		s.BanUnbanUser(msg, true)
+	case "unban":
+		s.BanUnbanUser(msg, false)
 	default:
 		s.SendMessage("Неизвестная команда", msg.Chat.ID, msg.MessageID)
 	}
@@ -205,8 +207,8 @@ func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err erro
 	return
 }
 
-// BanUser method ban selected user
-func (s *Server) BanUser(msg *tgbotapi.Message) {
+// BanUnbanUser method ban selected user
+func (s *Server) BanUnbanUser(msg *tgbotapi.Message, ban bool) {
 	isAdmin, err := s.UserIsAdmin(msg.From.ID, msg.Chat)
 	if err != nil {
 		return
@@ -241,7 +243,14 @@ func (s *Server) BanUser(msg *tgbotapi.Message) {
 	} else {
 		config.ChatID = msg.Chat.ID
 	}
-	resp, err := s.Bot.KickChatMember(config)
+
+	var resp tgbotapi.APIResponse
+	if ban {
+		resp, err = s.Bot.KickChatMember(config)
+	} else {
+		resp, err = s.Bot.UnbanChatMember(config)
+	}
+
 	if err != nil {
 		log.Printf("Error in KickChatMember: %s", err)
 	}
