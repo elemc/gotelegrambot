@@ -235,11 +235,11 @@ func (s *Server) BanUser(msg *tgbotapi.Message) {
 	}
 
 	config := tgbotapi.ChatMemberConfig{}
-	config.ChatID = msg.Chat.ID
+	config.UserID = user.ID
 	if msg.Chat.IsSuperGroup() || msg.Chat.IsGroup() {
 		config.SuperGroupUsername = "@" + msg.Chat.UserName
 	} else {
-		config.UserID = user.ID
+		config.ChatID = msg.Chat.ID
 	}
 	resp, err := s.Bot.KickChatMember(config)
 	if err != nil {
