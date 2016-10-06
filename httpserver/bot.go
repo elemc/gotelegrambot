@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elemc/gotelegrambot/db"
 
@@ -174,8 +175,82 @@ func (s *Server) CommandHandler(msg *tgbotapi.Message) {
 	}
 }
 
+// SendError simple shell for SendMessage with error
+func (s *Server) SendError(msgText string, msg *tgbotapi.Message) {
+	s.SendMessage(msgText, msg.Chat.ID, msg.MessageID)
+}
+
+// UserIsAdmin returns user is admin or not
+func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err error) {
+	cc := tgbotapi.ChatConfig{}
+	cc.ChatID = chat.ID
+	cc.SuperGroupUsername = chat.UserName
+
+	admins, err := s.Bot.GetChatAdministrators(cc)
+	if err != nil {
+		log.Printf("Error in GetChatAdministrators: %s", err)
+		return
+	}
+
+	ok = false
+	for _, admin := range admins {
+		if admin.User.ID == userID {
+			ok = true
+			break
+		}
+	}
+	return
+}
+
+// BanUser method ban selected user
 func (s *Server) BanUser(msg *tgbotapi.Message) {
-	log.Printf("Ban user: %s", msg.CommandArguments())
+	isAdmin, err := s.UserIsAdmin(msg.From.ID, msg.Chat)
+	if err != nil {
+		return
+	}
+	if !isAdmin {
+		s.SendError("Не удалось установить Вашу причастность к администраторам группы!", msg)
+		return
+	}
+
+	user, err := db.GetUser(msg.CommandArguments())
+	if err != nil {
+		errStrings := strings.Split(err.Error(), "\n")
+		if len(errStrings) > 1 {
+			switch errStrings[0] {
+			case "User not found":
+				s.SendError(fmt.Sprintf("Пользователь %s не найден", msg.CommandArguments()), msg)
+				return
+			case "Many users":
+				s.SendError(fmt.Sprintf("Найдено более одного пользователя, уточните:\n%s", strings.Join(errStrings[1:], "\n")), msg)
+				return
+			default:
+				s.SendError(fmt.Sprintf("Произошла неизвестная ошибка при поиске пользователя: %s", err.Error()), msg)
+				return
+			}
+		}
+	}
+
+	config := tgbotapi.ChatMemberConfig{}
+	config.ChatID = msg.Chat.ID
+	config.UserID = user.ID
+	config.SuperGroupUsername = msg.Chat.UserName
+	resp, err := s.Bot.KickChatMember(config)
+	if err != nil {
+		log.Printf("Error in KickChatMember: %s", err)
+	}
+	if resp.Ok {
+		s.SendMessage("Успешно выполнено.", msg.Chat.ID, msg.MessageID)
+		return
+	}
+	errMsg := fmt.Sprintf("Не удалось забанить пользователя: code=%d description: %s", resp.ErrorCode, resp.Description)
+	s.SendError(errMsg, msg)
+	data, err := resp.Result.MarshalJSON()
+	if err != nil {
+		log.Printf("Error in MarshalJSON APIResponse in BanUser: %s", err)
+		return
+	}
+	log.Printf("Error in KickChatMember: code=%d description: %s\n[%s]", resp.ErrorCode, resp.Description, string(data))
 }
 
 // SendPing sends joke ping to chat
@@ -184,7 +259,7 @@ func (s *Server) SendPing(msg *tgbotapi.Message) {
 	r.Seed(int64(msg.MessageID))
 
 	pingMsg := fmt.Sprintf("%s пинг от тебя %3.3f", msg.From.String(), r.Float32())
-	s.SendMessage(pingMsg, msg.Chat.ID, 0)
+	s.SendMessage(pingMsg, msg.Chat.ID, msg.MessageID)
 }
 
 // SendHelp sends help message to chat
@@ -194,7 +269,7 @@ func (s *Server) SendHelp(msg *tgbotapi.Message) {
 /start - приветствие (стандартная для любого бота Telegram)
 /ban @username - забанить пользователя в группе (бот должен иметь административные права в группе)
 /unban @username - разбанить пользователя в группе (бот должен иметь административные права в группе)`
-	s.SendMessage(helpMsg, msg.Chat.ID, 0)
+	s.SendMessage(helpMsg, msg.Chat.ID, msg.MessageID)
 }
 
 func getFileName(fn string) string {

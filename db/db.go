@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	couchbase "github.com/couchbase/gocb"
@@ -395,5 +396,59 @@ func GetDates(chatID int64, year int, month int) (result []int, err error) {
 		}
 	}
 	return
+}
 
+// GetUser get user by username or first and last name
+func GetUser(username string) (user *tgbotapi.User, err error) {
+	type couchuser struct {
+		User tgbotapi.User `json:"bot"`
+	}
+
+	var queryStr string
+
+	if username[0] == '@' { // username
+		queryStr = fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='user' AND username='%s'", bucketName, username[1:])
+	} else { // first and last name
+		argList := strings.Split(username, " ")
+		switch len(argList) {
+		case 1:
+			queryStr = fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='user' AND first_name='%s'", bucketName, argList[0])
+		case 2:
+			queryStr = fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='user' AND first_name='%s' AND last_name='%s'", bucketName, argList[0], argList[1])
+		default:
+			return nil, fmt.Errorf("User not found\n%s", username)
+		}
+	}
+
+	query := couchbase.NewN1qlQuery(queryStr)
+	res, err := bucket.ExecuteN1qlQuery(query, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var userList []string
+	tempuser := couchuser{}
+	for res.Next(&tempuser) {
+		data, err := json.Marshal(tempuser.User)
+		if err != nil {
+			log.Printf("Error in marshal GetUser: %s", err)
+			continue
+		}
+		oUser := new(tgbotapi.User)
+		err = json.Unmarshal(data, oUser)
+		if err != nil {
+			log.Printf("Error in unmarshal GetUser: %s", err)
+			continue
+		}
+		user = oUser
+		userList = append(userList, user.String())
+	}
+
+	if len(userList) > 1 {
+		return nil, fmt.Errorf("Many users\n%s", strings.Join(userList, "\n"))
+	} else if len(userList) == 0 {
+		return nil, fmt.Errorf("User not found\n%s", username)
+	}
+
+	return
 }
