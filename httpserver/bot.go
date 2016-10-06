@@ -184,7 +184,9 @@ func (s *Server) SendError(msgText string, msg *tgbotapi.Message) {
 func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err error) {
 	cc := tgbotapi.ChatConfig{}
 	cc.ChatID = chat.ID
-	cc.SuperGroupUsername = chat.UserName
+	if chat.IsSuperGroup() {
+		cc.SuperGroupUsername = chat.UserName
+	}
 
 	admins, err := s.Bot.GetChatAdministrators(cc)
 	if err != nil {
@@ -234,7 +236,9 @@ func (s *Server) BanUser(msg *tgbotapi.Message) {
 	config := tgbotapi.ChatMemberConfig{}
 	config.ChatID = msg.Chat.ID
 	config.UserID = user.ID
-	config.SuperGroupUsername = msg.Chat.UserName
+	if msg.Chat.IsSuperGroup() {
+		config.SuperGroupUsername = msg.Chat.UserName
+	}
 	resp, err := s.Bot.KickChatMember(config)
 	if err != nil {
 		log.Printf("Error in KickChatMember: %s", err)
