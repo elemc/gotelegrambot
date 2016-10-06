@@ -172,6 +172,8 @@ func (s *Server) CommandHandler(msg *tgbotapi.Message) {
 		s.BanUnbanUser(msg, true)
 	case "unban":
 		s.BanUnbanUser(msg, false)
+	case "banlist":
+		s.BanList(msg)
 	default:
 		s.SendMessage("Неизвестная команда", msg.Chat.ID, msg.MessageID)
 	}
@@ -205,6 +207,53 @@ func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err erro
 		}
 	}
 	return
+}
+
+// UserIsBanned returns ban status user true or false
+func (s *Server) UserIsBanned(userID int, chat *tgbotapi.Chat) (banned bool, err error) {
+	cc := tgbotapi.ChatConfigWithUser{}
+	if chat.IsSuperGroup() || chat.IsGroup() {
+		cc.SuperGroupUsername = "@" + chat.UserName
+	} else {
+		cc.ChatID = chat.ID
+	}
+	cc.UserID = userID
+
+	member, err := s.Bot.GetChatMember(cc)
+	if err != nil {
+		return
+	}
+
+	banned = member.WasKicked()
+	return
+}
+
+// BanList method returns ban list
+func (s *Server) BanList(msg *tgbotapi.Message) {
+	users, err := db.GetUsers()
+	if err != nil {
+		log.Printf("Error in GetUsers in BanList: %s", err)
+		return
+	}
+
+	var bannedList []string
+	for _, user := range users {
+		banned, err := s.UserIsBanned(user.ID, msg.Chat)
+		if err != nil {
+			log.Printf("Error in UserIsBanned: %s", err)
+			continue
+		}
+		if banned {
+			bannedList = append(bannedList, user.String())
+		}
+	}
+
+	if len(bannedList) == 0 {
+		s.SendMessage("Ура! Мы чисты! Забанненых нет", msg.Chat.ID, msg.MessageID)
+		return
+	}
+	msgText := fmt.Sprintf("Список забанненных лиц:\n%s", strings.Join(bannedList, "\n"))
+	s.SendMessage(msgText, msg.Chat.ID, msg.MessageID)
 }
 
 // BanUnbanUser method ban selected user
