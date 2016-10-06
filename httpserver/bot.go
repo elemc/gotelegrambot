@@ -273,6 +273,11 @@ func (s *Server) SendPing(msg *tgbotapi.Message) {
 	r := rand.New(rand.NewSource(int64(msg.From.ID)))
 	r.Seed(int64(msg.MessageID))
 
+	// Fix issue #1
+	if r.Int()%6 == 0 {
+		s.SendMessage("Request timed out", msg.Chat.ID, msg.MessageID)
+		return
+	}
 	pingMsg := fmt.Sprintf("%s пинг от тебя %3.3f", msg.From.String(), r.Float32())
 	s.SendMessage(pingMsg, msg.Chat.ID, msg.MessageID)
 }
