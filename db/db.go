@@ -400,6 +400,9 @@ func GetDates(chatID int64, year int, month int) (result []int, err error) {
 
 // GetUser get user by username or first and last name
 func GetUser(username string) (user *tgbotapi.User, err error) {
+	if len(username) == 0 {
+		return
+	}
 	type couchuser struct {
 		User tgbotapi.User `json:"bot"`
 	}
