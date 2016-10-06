@@ -161,6 +161,9 @@ func (s *Server) SendMessage(msgText string, chatID int64, replyID int) {
 
 // CommandHandler function for handle commands for bot
 func (s *Server) CommandHandler(msg *tgbotapi.Message) {
+	if msg == nil {
+		return
+	}
 	switch msg.Command() {
 	case "start":
 		s.SendMessage("Привет", msg.Chat.ID, msg.MessageID)
