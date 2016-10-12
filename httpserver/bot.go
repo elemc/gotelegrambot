@@ -3,6 +3,7 @@ package httpserver
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -351,6 +352,37 @@ func (s *Server) SendHelp(msg *tgbotapi.Message) {
 /unban @username - разбанить пользователя в группе (бот должен иметь административные права в группе)
 /ping - шуточный пинг`
 	s.SendMessage(helpMsg, msg.Chat.ID, msg.MessageID)
+}
+
+// FillCens load censore database
+func (s *Server) FillCens() {
+	f, err := os.Open("mat.txt")
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return
+	}
+
+	s.CensList = []string{}
+
+	words := strings.Split(string(data), ",")
+	for _, word := range words {
+		s.CensList = append(s.CensList, strings.TrimSpace(word))
+	}
+}
+
+// Cens method for censore messages
+func (s *Server) Cens(msg *tgbotapi.Message) {
+	for _, word := range s.CensList {
+		if strings.Contains(msg.Text, word) {
+			s.SendError(fmt.Sprintf("Перестаньте сказать, %s! Вы не на привозе!", msg.From.String()), msg)
+			return
+		}
+	}
 }
 
 func getFileName(fn string) string {

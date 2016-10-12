@@ -44,6 +44,7 @@ func main() {
 	s.PhotoCache = make(httpserver.PhotosCache)
 	s.FileCache = make(httpserver.FilesCache)
 	s.APIKey = settings.APIKey
+	go s.FillCens()
 	go s.Start()
 	//s.Start()
 

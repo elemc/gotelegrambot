@@ -22,6 +22,7 @@ type Server struct {
 	PhotoCache PhotosCache
 	FileCache  FilesCache
 	APIKey     string
+	CensList   []string
 }
 
 const (
@@ -171,8 +172,10 @@ func (s *Server) dayPage(c *gin.Context) {
 func (s *Server) updatePhotoCacheServer() {
 	for {
 		time.Sleep(time.Minute * 5)
-		s.UpdatePhotoCache()
 		log.Printf("Update phtoto cache started...")
+		s.UpdatePhotoCache()
+		log.Printf("Update cens database started...")
+		s.FillCens()
 	}
 }
 
