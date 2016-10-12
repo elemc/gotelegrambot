@@ -145,6 +145,7 @@ func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
 		level.Level++
 		currentLevel = level.Level
 	}
+	log.Printf("Current level for user [%s/%d] is %d", user.String(), user.ID, currentLevel)
 
 	_, err = bucket.Upsert(key, &level, 0)
 	return
