@@ -381,6 +381,9 @@ func (s *Server) FillCens() {
 // Cens method for censore messages
 func (s *Server) Cens(msg *tgbotapi.Message) {
 	for _, word := range s.CensList {
+		if word == "" {
+			continue
+		}
 		if strings.Contains(msg.Text, word) {
 			s.SendError(fmt.Sprintf("Перестаньте сказать, %s! Вы не на привозе!", msg.From.String()), msg)
 			return
