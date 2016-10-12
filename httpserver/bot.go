@@ -358,12 +358,14 @@ func (s *Server) SendHelp(msg *tgbotapi.Message) {
 func (s *Server) FillCens() {
 	f, err := os.Open("mat.txt")
 	if err != nil {
+		log.Printf("Error in open mat.txt: %s", err)
 		return
 	}
 	defer f.Close()
 
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
+		log.Printf("Error in reading mat.txt: %s", err)
 		return
 	}
 
@@ -373,6 +375,7 @@ func (s *Server) FillCens() {
 	for _, word := range words {
 		s.CensList = append(s.CensList, strings.TrimSpace(word))
 	}
+	log.Printf("Cens database filled.")
 }
 
 // Cens method for censore messages

@@ -94,6 +94,9 @@ func main() {
 		// Commands
 		if update.Message.IsCommand() {
 			go s.CommandHandler(update.Message)
+		} else {
+			// Cens
+			go s.Cens(update.Message)
 		}
 	}
 }
