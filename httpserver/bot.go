@@ -178,7 +178,9 @@ func (s *Server) CommandHandler(msg *tgbotapi.Message) {
 	case "banlist":
 		s.BanList(msg)
 	default:
-		s.SendMessage("Неизвестная команда", msg.Chat.ID, msg.MessageID)
+		log.Printf("Unknown command: %s", msg.Command())
+		// 	if msg.
+		// 	s.SendMessage("Неизвестная команда", msg.Chat.ID, msg.MessageID)
 	}
 }
 
