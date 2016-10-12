@@ -290,6 +290,12 @@ func (s *Server) BanUnbanUser(msg *tgbotapi.Message, ban bool) {
 		}
 	}
 
+	userIsAdmin, err := s.UserIsAdmin(user.ID, msg.Chat)
+	if userIsAdmin {
+		s.SendError(fmt.Sprintf("Пользователь [%s] является администратором группы. Администраторов банить нельзя! Они хорошие!", user.String()), msg)
+		return
+	}
+
 	config := tgbotapi.ChatMemberConfig{}
 	config.UserID = user.ID
 	if msg.Chat.IsSuperGroup() || msg.Chat.IsGroup() {
