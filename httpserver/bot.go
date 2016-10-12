@@ -297,36 +297,37 @@ func (s *Server) BanUnbanUser(msg *tgbotapi.Message, ban bool) {
 		return
 	}
 
-	config := tgbotapi.ChatMemberConfig{}
-	config.UserID = user.ID
-	if msg.Chat.IsSuperGroup() || msg.Chat.IsGroup() {
-		config.SuperGroupUsername = "@" + msg.Chat.UserName
-	} else {
-		config.ChatID = msg.Chat.ID
-	}
-
-	var resp tgbotapi.APIResponse
-	if ban {
-		resp, err = s.Bot.KickChatMember(config)
-	} else {
-		resp, err = s.Bot.UnbanChatMember(config)
-	}
+	// config := tgbotapi.ChatMemberConfig{}
+	// config.UserID = user.ID
+	// if msg.Chat.IsSuperGroup() || msg.Chat.IsGroup() {
+	// 	config.SuperGroupUsername = "@" + msg.Chat.UserName
+	// } else {
+	// 	config.ChatID = msg.Chat.ID
+	// }
+	//
+	// var resp tgbotapi.APIResponse
+	// if ban {
+	// 	resp, err = s.Bot.KickChatMember(config)
+	// } else {
+	// 	resp, err = s.Bot.UnbanChatMember(config)
+	// }
+	ok, err := s.kickUser(user.ID, msg.Chat, ban)
 
 	if err != nil {
 		log.Printf("Error in KickChatMember: %s", err)
+		return
 	}
-	if resp.Ok {
+	if ok {
 		s.SendMessage("Успешно выполнено.", msg.Chat.ID, msg.MessageID)
-		return
 	}
-	errMsg := fmt.Sprintf("Не удалось забанить пользователя: code=%d description: %s", resp.ErrorCode, resp.Description)
-	s.SendError(errMsg, msg)
-	data, err := resp.Result.MarshalJSON()
-	if err != nil {
-		log.Printf("Error in MarshalJSON APIResponse in BanUser: %s", err)
-		return
-	}
-	log.Printf("Error in KickChatMember: code=%d description: %s\n[%s]", resp.ErrorCode, resp.Description, string(data))
+	// errMsg := fmt.Sprintf("Не удалось забанить/разбанить пользователя: code=%d description: %s", resp.ErrorCode, resp.Description)
+	// s.SendError(errMsg, msg)
+	// data, err := resp.Result.MarshalJSON()
+	// if err != nil {
+	// 	log.Printf("Error in MarshalJSON APIResponse in BanUser: %s", err)
+	// 	return
+	// }
+	// log.Printf("Error in KickChatMember: code=%d description: %s\n[%s]", resp.ErrorCode, resp.Description, string(data))
 }
 
 // SendPing sends joke ping to chat
@@ -387,6 +388,27 @@ func (s *Server) Cens(msg *tgbotapi.Message) {
 	for _, word := range s.CensList {
 		if strings.Contains(strings.ToUpper(msg.Text), strings.ToUpper(word)) {
 			s.SendError(fmt.Sprintf("Перестаньте сказать, %s! Вы не на привозе!", msg.From.String()), msg)
+			cur, err := db.AddCensLevel(msg.From)
+			if err != nil {
+				log.Printf("Error in AddCensLevel: %s", err)
+				return
+			}
+			if cur > 5 {
+				userIsAdmin, _ := s.UserIsAdmin(msg.From.ID, msg.Chat)
+				if userIsAdmin {
+					return
+				}
+
+				ok, err := s.kickUser(msg.From.ID, msg.Chat, true)
+
+				if err != nil {
+					log.Printf("Error in KickChatMember: %s", err)
+					return
+				}
+				if ok {
+					s.SendError(fmt.Sprintf("Поздравляю, %s! Вы превысили количество бранных слов в году и выбываете из чата!", msg.From.String()), msg)
+				}
+			}
 			return
 		}
 	}
@@ -411,6 +433,33 @@ func downloadImage(url string, filename string) (err error) {
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
 		return
+	}
+	return
+}
+
+func (s *Server) kickUser(userID int, chat *tgbotapi.Chat, ban bool) (ok bool, err error) {
+	ok = false
+	config := tgbotapi.ChatMemberConfig{}
+	config.UserID = userID
+	if chat.IsSuperGroup() || chat.IsGroup() {
+		config.SuperGroupUsername = "@" + chat.UserName
+	} else {
+		config.ChatID = chat.ID
+	}
+
+	var resp tgbotapi.APIResponse
+	if ban {
+		resp, err = s.Bot.KickChatMember(config)
+	} else {
+		resp, err = s.Bot.UnbanChatMember(config)
+	}
+	if err != nil {
+		return
+	}
+	if !resp.Ok {
+		err = fmt.Errorf("Не удалось забанить/разбанить пользователя: code=%d description: %s", resp.ErrorCode, resp.Description)
+	} else {
+		ok = true
 	}
 	return
 }

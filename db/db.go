@@ -122,6 +122,34 @@ func SaveFile(file *tgbotapi.File, chatID int64) (err error) {
 	return
 }
 
+// AddCensLevel added +1 to cens level in year
+func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
+	currentLevel = 0
+	type censLevel struct {
+		ID    int `json:"user_id"`
+		Level int `json:"level"`
+		Year  int `json:"year"`
+	}
+
+	currentYear := time.Now().Year()
+	key := fmt.Sprintf("censlevel:%d:%d", currentYear, user.ID)
+
+	level := censLevel{}
+
+	_, err = bucket.Get(key, &level)
+	if err != nil {
+		level.ID = user.ID
+		level.Level = 1
+		level.Year = currentYear
+	} else {
+		level.Level++
+		currentLevel = level.Level
+	}
+
+	_, err = bucket.Upsert(key, &level, 0)
+	return
+}
+
 // GetFile returns file json from couchbase
 func GetFile(fileID string, chatID int64) (f *tgbotapi.File, err error) {
 	key := fmt.Sprintf("file:%d:%s", chatID, fileID)
