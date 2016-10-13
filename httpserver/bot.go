@@ -378,32 +378,19 @@ func (s *Server) FillCens() {
 
 // Cens method for censore messages
 func (s *Server) Cens(msg *tgbotapi.Message) {
-	for _, word := range s.CensList {
-		if strings.Contains(strings.ToUpper(msg.Text), strings.ToUpper(word)) {
-			log.Printf("[%s] cens word [%s] in text [%s]", msg.From.String(), word, msg.Text)
-			s.SendError(fmt.Sprintf("Перестаньте сказать, %s! Вы не на привозе!", msg.From.String()), msg)
-			cur, err := db.AddCensLevel(msg.From)
-			if err != nil {
-				log.Printf("Error in AddCensLevel: %s", err)
-				return
+	lineList := strings.Split(msg.Text, "\n")
+	var wordList []string
+	for _, line := range lineList {
+		wl := strings.Split(line, " ")
+		wordList = append(wordList, wl...)
+	}
+	for _, word := range wordList {
+		uWord := strings.ToUpper(word)
+		for _, mWord := range s.CensList {
+			umWord := strings.ToUpper(mWord)
+			if umWord == uWord {
+				s.censWord(msg, mWord)
 			}
-			if cur > 5 {
-				userIsAdmin, _ := s.UserIsAdmin(msg.From.ID, msg.Chat)
-				if userIsAdmin {
-					return
-				}
-
-				ok, err := s.kickUser(msg.From.ID, msg.Chat, true)
-
-				if err != nil {
-					log.Printf("Error in KickChatMember: %s", err)
-					return
-				}
-				if ok {
-					s.SendError(fmt.Sprintf("Поздравляю, %s! Вы превысили количество бранных слов в году и выбываете из чата!", msg.From.String()), msg)
-				}
-			}
-			return
 		}
 	}
 }
@@ -462,6 +449,33 @@ func (s *Server) GetCensLevel(msg *tgbotapi.Message) {
 		return
 	}
 	s.SendError(fmt.Sprintf("Твой личный счетчик бранных слов: %d", currentLevel), msg)
+}
+
+func (s *Server) censWord(msg *tgbotapi.Message, mWord string) {
+	log.Printf("[%s] cens word [%s] in text [%s]", msg.From.String(), mWord, msg.Text)
+	s.SendError(fmt.Sprintf("Перестаньте сказать, %s! Вы не на привозе!", msg.From.String()), msg)
+	cur, err := db.AddCensLevel(msg.From)
+	if err != nil {
+		log.Printf("Error in AddCensLevel: %s", err)
+		return
+	}
+	if cur > 5 {
+		userIsAdmin, _ := s.UserIsAdmin(msg.From.ID, msg.Chat)
+		if userIsAdmin {
+			return
+		}
+
+		ok, err := s.kickUser(msg.From.ID, msg.Chat, true)
+
+		if err != nil {
+			log.Printf("Error in KickChatMember: %s", err)
+			return
+		}
+		if ok {
+			s.SendError(fmt.Sprintf("Поздравляю, %s! Вы превысили количество бранных слов в году и выбываете из чата!", msg.From.String()), msg)
+		}
+	}
+	return
 }
 
 func getFileName(fn string) string {
