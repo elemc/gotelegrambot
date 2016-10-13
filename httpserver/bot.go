@@ -192,6 +192,9 @@ func (s *Server) SendError(msgText string, msg *tgbotapi.Message) {
 
 // UserIsAdmin returns user is admin or not
 func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err error) {
+	if chat == nil {
+		return false, fmt.Errorf("Chat pointer is nil")
+	}
 	cc := tgbotapi.ChatConfig{}
 	if chat.IsSuperGroup() || chat.IsGroup() {
 		cc.SuperGroupUsername = "@" + chat.UserName
@@ -291,10 +294,12 @@ func (s *Server) BanUnbanUser(msg *tgbotapi.Message, ban bool) {
 		}
 	}
 
-	userIsAdmin, err := s.UserIsAdmin(user.ID, msg.Chat)
-	if userIsAdmin {
-		s.SendError(fmt.Sprintf("Пользователь [%s] является администратором группы. Администраторов банить нельзя! Они хорошие!", user.String()), msg)
-		return
+	if user != nil {
+		userIsAdmin, _ := s.UserIsAdmin(user.ID, msg.Chat)
+		if userIsAdmin {
+			s.SendError(fmt.Sprintf("Пользователь [%s] является администратором группы. Администраторов банить нельзя! Они хорошие!", user.String()), msg)
+			return
+		}
 	}
 
 	// config := tgbotapi.ChatMemberConfig{}
