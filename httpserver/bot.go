@@ -262,7 +262,7 @@ func (s *Server) BanList(msg *tgbotapi.Message) {
 	}
 
 	if len(bannedList) == 0 {
-		s.SendMessage("Ура! Мы чисты! Забанненых нет", msg.Chat.ID, msg.MessageID)
+		s.SendMessage("Ура! Мы чисты! Забаненых нет", msg.Chat.ID, msg.MessageID)
 		return
 	}
 	msgText := fmt.Sprintf("Список забанненных лиц:\n%s", strings.Join(bannedList, "\n"))
