@@ -300,6 +300,9 @@ func (s *Server) BanUnbanUser(msg *tgbotapi.Message, ban bool) {
 			s.SendError(fmt.Sprintf("Пользователь [%s] является администратором группы. Администраторов банить нельзя! Они хорошие!", user.String()), msg)
 			return
 		}
+	} else {
+		s.SendError(fmt.Sprintf("Пользователь [%s] не найден", msg.CommandArguments()), msg)
+		return
 	}
 
 	// config := tgbotapi.ChatMemberConfig{}
