@@ -445,7 +445,9 @@ func (s *Server) ClearCens(msg *tgbotapi.Message) {
 	err = db.SetCensLevel(user, 0)
 	if err != nil {
 		log.Printf("Error in ClearCens -> SetCensLevel: %s", err)
+		return
 	}
+	s.SendError("Выполнено успешно.", msg)
 }
 
 // GetCensLevel send message with current censore level for user

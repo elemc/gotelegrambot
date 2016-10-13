@@ -18,6 +18,7 @@ var (
 	bucketName string
 )
 
+// CensLevel main struct for records censlevel:year:id
 type CensLevel struct {
 	ID    int `json:"user_id"`
 	Level int `json:"level"`
@@ -157,7 +158,7 @@ func SetCensLevel(user *tgbotapi.User, setlevel int) (err error) {
 		level.Level = setlevel
 		level.Year = currentYear
 	} else {
-		level.Level++
+		level.Level = setlevel
 	}
 
 	_, err = bucket.Upsert(key, &level, 0)
