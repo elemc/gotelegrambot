@@ -165,6 +165,25 @@ func SetCensLevel(user *tgbotapi.User, setlevel int) (err error) {
 	return
 }
 
+// ClearCensLevel remove document from bucket
+func ClearCensLevel(user *tgbotapi.User) (err error) {
+	currentYear := time.Now().Year()
+	key := fmt.Sprintf("censlevel:%d:%d", currentYear, user.ID)
+
+	level := CensLevel{}
+
+	cas, err := bucket.Get(key, &level)
+	if err != nil {
+		return
+	}
+
+	_, err = bucket.Remove(key, cas)
+	if err != nil {
+		return
+	}
+	return
+}
+
 // AddCensLevel added +1 to cens level in year
 func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
 	currentLevel, err = GetCensLevel(user)

@@ -442,9 +442,9 @@ func (s *Server) ClearCens(msg *tgbotapi.Message) {
 		return
 	}
 
-	err = db.SetCensLevel(user, 0)
+	err = db.ClearCensLevel(user)
 	if err != nil {
-		log.Printf("Error in ClearCens -> SetCensLevel: %s", err)
+		log.Printf("Error in ClearCens -> ClearCensLevel: %s", err)
 		return
 	}
 	s.SendError("Выполнено успешно.", msg)
