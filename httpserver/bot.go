@@ -454,6 +454,10 @@ func (s *Server) ClearCens(msg *tgbotapi.Message) {
 func (s *Server) GetCensLevel(msg *tgbotapi.Message) {
 	currentLevel, err := db.GetCensLevel(msg.From)
 	if err != nil {
+		if err.Error() == "Key not found." {
+			s.SendError("Ты чист душой!", msg)
+			return
+		}
 		log.Printf("Error in GetCensLevel -> GetCensLevel: %s", err)
 		return
 	}
