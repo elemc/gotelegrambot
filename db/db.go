@@ -18,6 +18,12 @@ var (
 	bucketName string
 )
 
+type CensLevel struct {
+	ID    int `json:"user_id"`
+	Level int `json:"level"`
+	Year  int `json:"year"`
+}
+
 // InitCouchbase function initialize couchbase bucket with parameters
 func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	cluster, err := couchbase.Connect(couchbaseCluster)
@@ -122,32 +128,53 @@ func SaveFile(file *tgbotapi.File, chatID int64) (err error) {
 	return
 }
 
-// AddCensLevel added +1 to cens level in year
-func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
+// GetCensLevel function returns censore level for user
+func GetCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
 	currentLevel = 0
-	type censLevel struct {
-		ID    int `json:"user_id"`
-		Level int `json:"level"`
-		Year  int `json:"year"`
-	}
-
 	currentYear := time.Now().Year()
 	key := fmt.Sprintf("censlevel:%d:%d", currentYear, user.ID)
 
-	level := censLevel{}
+	level := CensLevel{}
+
+	_, err = bucket.Get(key, &level)
+	if err != nil {
+		return
+	}
+	currentLevel = level.Level
+	return
+}
+
+// SetCensLevel function sets level for user
+func SetCensLevel(user *tgbotapi.User, setlevel int) (err error) {
+	currentYear := time.Now().Year()
+	key := fmt.Sprintf("censlevel:%d:%d", currentYear, user.ID)
+
+	level := CensLevel{}
 
 	_, err = bucket.Get(key, &level)
 	if err != nil {
 		level.ID = user.ID
-		level.Level = 1
+		level.Level = setlevel
 		level.Year = currentYear
 	} else {
 		level.Level++
 	}
-	currentLevel = level.Level
-	log.Printf("Current level for user [%s/%d] is %d", user.String(), user.ID, currentLevel)
 
 	_, err = bucket.Upsert(key, &level, 0)
+	return
+}
+
+// AddCensLevel added +1 to cens level in year
+func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
+	currentLevel, err = GetCensLevel(user)
+	if err != nil {
+		currentLevel = 1
+		err = SetCensLevel(user, currentLevel)
+		return
+	}
+	currentLevel++
+	err = SetCensLevel(user, currentLevel)
+
 	return
 }
 

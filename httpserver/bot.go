@@ -178,6 +178,10 @@ func (s *Server) CommandHandler(msg *tgbotapi.Message) {
 		s.BanUnbanUser(msg, false)
 	case "banlist":
 		s.BanList(msg)
+	case "clearcens":
+		s.ClearCens(msg)
+	case "mycens":
+		s.GetCensLevel(msg)
 	default:
 		log.Printf("Unknown command: %s", msg.Command())
 		// 	if msg.
@@ -305,20 +309,6 @@ func (s *Server) BanUnbanUser(msg *tgbotapi.Message, ban bool) {
 		return
 	}
 
-	// config := tgbotapi.ChatMemberConfig{}
-	// config.UserID = user.ID
-	// if msg.Chat.IsSuperGroup() || msg.Chat.IsGroup() {
-	// 	config.SuperGroupUsername = "@" + msg.Chat.UserName
-	// } else {
-	// 	config.ChatID = msg.Chat.ID
-	// }
-	//
-	// var resp tgbotapi.APIResponse
-	// if ban {
-	// 	resp, err = s.Bot.KickChatMember(config)
-	// } else {
-	// 	resp, err = s.Bot.UnbanChatMember(config)
-	// }
 	ok, err := s.kickUser(user.ID, msg.Chat, ban)
 
 	if err != nil {
@@ -328,14 +318,6 @@ func (s *Server) BanUnbanUser(msg *tgbotapi.Message, ban bool) {
 	if ok {
 		s.SendMessage("Успешно выполнено.", msg.Chat.ID, msg.MessageID)
 	}
-	// errMsg := fmt.Sprintf("Не удалось забанить/разбанить пользователя: code=%d description: %s", resp.ErrorCode, resp.Description)
-	// s.SendError(errMsg, msg)
-	// data, err := resp.Result.MarshalJSON()
-	// if err != nil {
-	// 	log.Printf("Error in MarshalJSON APIResponse in BanUser: %s", err)
-	// 	return
-	// }
-	// log.Printf("Error in KickChatMember: code=%d description: %s\n[%s]", resp.ErrorCode, resp.Description, string(data))
 }
 
 // SendPing sends joke ping to chat
@@ -359,6 +341,9 @@ func (s *Server) SendHelp(msg *tgbotapi.Message) {
 /start - приветствие (стандартная для любого бота Telegram)
 /ban @username - забанить пользователя в группе (бот должен иметь административные права в группе)
 /unban @username - разбанить пользователя в группе (бот должен иметь административные права в группе)
+/banlist - показать список забаненых пользователей
+/clearcens - очистить счетчик бранных слов
+/mycens - показать собственный счетчик бранных слов
 /ping - шуточный пинг`
 	s.SendMessage(helpMsg, msg.Chat.ID, msg.MessageID)
 }
@@ -395,6 +380,7 @@ func (s *Server) FillCens() {
 func (s *Server) Cens(msg *tgbotapi.Message) {
 	for _, word := range s.CensList {
 		if strings.Contains(strings.ToUpper(msg.Text), strings.ToUpper(word)) {
+			log.Printf("[%s] cens word [%s] in text [%s]", msg.From.String(), word, msg.Text)
 			s.SendError(fmt.Sprintf("Перестаньте сказать, %s! Вы не на привозе!", msg.From.String()), msg)
 			cur, err := db.AddCensLevel(msg.From)
 			if err != nil {
@@ -420,6 +406,56 @@ func (s *Server) Cens(msg *tgbotapi.Message) {
 			return
 		}
 	}
+}
+
+// ClearCens command for clean censore level
+func (s *Server) ClearCens(msg *tgbotapi.Message) {
+	isAdmin, err := s.UserIsAdmin(msg.From.ID, msg.Chat)
+	if err != nil {
+		return
+	}
+	if !isAdmin {
+		s.SendError("Не удалось установить Вашу причастность к администраторам группы!", msg)
+		return
+	}
+
+	user, err := db.GetUser(msg.CommandArguments())
+	if err != nil {
+		errStrings := strings.Split(err.Error(), "\n")
+		if len(errStrings) > 1 {
+			switch errStrings[0] {
+			case "User not found":
+				s.SendError(fmt.Sprintf("Пользователь %s не найден", msg.CommandArguments()), msg)
+				return
+			case "Many users":
+				s.SendError(fmt.Sprintf("Найдено более одного пользователя, уточните:\n%s", strings.Join(errStrings[1:], "\n")), msg)
+				return
+			default:
+				s.SendError(fmt.Sprintf("Произошла неизвестная ошибка при поиске пользователя: %s", err.Error()), msg)
+				return
+			}
+		}
+	}
+
+	if user == nil {
+		s.SendError(fmt.Sprintf("Пользователь %s не найден.", msg.CommandArguments()), msg)
+		return
+	}
+
+	err = db.SetCensLevel(user, 0)
+	if err != nil {
+		log.Printf("Error in ClearCens -> SetCensLevel: %s", err)
+	}
+}
+
+// GetCensLevel send message with current censore level for user
+func (s *Server) GetCensLevel(msg *tgbotapi.Message) {
+	currentLevel, err := db.GetCensLevel(msg.From)
+	if err != nil {
+		log.Printf("Error in GetCensLevel -> GetCensLevel: %s", err)
+		return
+	}
+	s.SendError(fmt.Sprintf("Твой личный счетчик бранных слов: %d", currentLevel), msg)
 }
 
 func getFileName(fn string) string {
