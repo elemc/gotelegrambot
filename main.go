@@ -96,7 +96,8 @@ func main() {
 			go s.CommandHandler(update.Message)
 		} else {
 			// Cens
-			go s.Cens(update.Message)
+			// Disable cens
+			//go s.Cens(update.Message)
 		}
 	}
 }
