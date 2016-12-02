@@ -367,12 +367,17 @@ func GetUsers() (users []*tgbotapi.User, err error) {
 	return
 }
 
-func getDates(chatID int64) (result []time.Time, err error) {
+func getDates(chatID int64, beginDate, endDate int64) (result []time.Time, err error) {
 	type couchdate struct {
 		Date int64 `json:"date"`
 	}
 
-	queryStr := fmt.Sprintf("SELECT date FROM %s WHERE type='message' AND chat.id=%d ORDER BY date", bucketName, chatID)
+	var dateWhere string
+	if beginDate != 0 || endDate != 0 {
+		dateWhere = fmt.Sprintf(" AND date >= %d AND date <= %d", beginDate, endDate)
+	}
+
+	queryStr := fmt.Sprintf("SELECT date FROM %s WHERE type='message' AND chat.id=%d %s ORDER BY date", bucketName, chatID, dateWhere)
 	query := couchbase.NewN1qlQuery(queryStr)
 	res, err := bucket.ExecuteN1qlQuery(query, nil)
 	if err != nil {
@@ -434,7 +439,7 @@ func appendIfNotFoundInt(list []int, s int) []int {
 
 // GetYears function returns years msg date from chat messages
 func GetYears(chatID int64) (result []string, err error) {
-	listDates, err := getDates(chatID)
+	listDates, err := getDates(chatID, 0, 0)
 	if err != nil {
 		return
 	}
@@ -447,7 +452,9 @@ func GetYears(chatID int64) (result []string, err error) {
 
 // GetMonthList function returns month list msg date from chat messages and year
 func GetMonthList(chatID int64, year int) (result []time.Month, err error) {
-	listDates, err := getDates(chatID)
+	beginDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.Local).Unix()
+	endDate := time.Date(year, 12, 31, 23, 59, 59, 100, time.Local).Unix()
+	listDates, err := getDates(chatID, beginDate, endDate)
 	if err != nil {
 		return
 	}
@@ -464,7 +471,10 @@ func GetMonthList(chatID int64, year int) (result []time.Month, err error) {
 
 // GetDates function returns month list msg date from chat messages and year
 func GetDates(chatID int64, year int, month int) (result []int, err error) {
-	listDates, err := getDates(chatID)
+	beginTime := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	beginDate := beginTime.Unix()
+	endDate := time.Date(year, time.Month(month), 32, 23, 59, 59, 100, time.Local).Unix()
+	listDates, err := getDates(chatID, beginDate, endDate)
 	if err != nil {
 		return
 	}

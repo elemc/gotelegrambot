@@ -69,6 +69,9 @@ func (s *Server) GetPhoto(chatID int64) {
 	config := tgbotapi.NewUserProfilePhotos(int(chatID))
 	photos, err := s.Bot.GetUserProfilePhotos(config)
 	if err != nil {
+		if err.Error() == "Bad Request: user not found" {
+			return
+		}
 		log.Printf("Error in GetPhoto for ID %d: %s", chatID, err.Error())
 		return
 	}
