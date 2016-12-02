@@ -66,13 +66,13 @@ func SaveMessage(msg *tgbotapi.Message) (err error) {
 	_, err = bucket.Upsert(key, &cMsg, 0)
 
 	if msg.Chat != nil {
-		err = SaveChat(msg.Chat)
+		err = SaveChat(msg.Chat, false)
 	}
 	if msg.ForwardFrom != nil {
 		err = SaveUser(msg.ForwardFrom)
 	}
 	if msg.ForwardFromChat != nil {
-		err = SaveChat(msg.ForwardFromChat)
+		err = SaveChat(msg.ForwardFromChat, true)
 	}
 	if msg.ReplyToMessage != nil {
 		err = SaveMessage(msg.ReplyToMessage)
@@ -207,7 +207,7 @@ func GetFile(fileID string, chatID int64) (f *tgbotapi.File, err error) {
 }
 
 // SaveChat method for save chat to database
-func SaveChat(chat *tgbotapi.Chat) (err error) {
+func SaveChat(chat *tgbotapi.Chat, forward bool) (err error) {
 	key := fmt.Sprintf("chat:%d", chat.ID)
 
 	type couchchat struct {
@@ -221,7 +221,11 @@ func SaveChat(chat *tgbotapi.Chat) (err error) {
 		return
 	}
 	err = json.Unmarshal(data, &cChat)
-	cChat.Type = "chat"
+	if forward {
+		cChat.Type = "forward-chat"
+	} else {
+		cChat.Type = "chat"
+	}
 
 	_, err = bucket.Upsert(key, cChat, 0)
 	return
