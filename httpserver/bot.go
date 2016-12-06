@@ -353,7 +353,7 @@ func (s *Server) SendHelp(msg *tgbotapi.Message) {
 
 // FillCens load censore database
 func (s *Server) FillCens() {
-	f, err := os.Open("mat.txt")
+	f, err := os.Open(filepath.Join(s.StaticDirPath, "mat.txt"))
 	if err != nil {
 		log.Printf("Error in open mat.txt: %s", err)
 		return
