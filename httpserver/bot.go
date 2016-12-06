@@ -40,9 +40,9 @@ func (s *Server) UpdatePhotoCache() {
 // GetPhotoFileName returns name photo file
 func (s *Server) GetPhotoFileName(userID int64) (result string) {
 	if fn, ok := s.PhotoCache[userID]; ok {
-		result = getFileName(fn)
+		result = getFileName("static", fn)
 	} else {
-		result = getFileName("nobody.png")
+		result = getFileName("static", "nobody.png")
 	}
 	return
 }
@@ -59,7 +59,7 @@ func (s *Server) GetFileNameByFileID(chatID int64, fileID string) (filename stri
 			return "missing-data"
 		}
 	}
-	filename = fmt.Sprintf("static/%s", f.FilePath)
+	filename = filepath.Join(s.StaticDirPath, f.FilePath)
 
 	return
 }
@@ -86,7 +86,7 @@ func (s *Server) GetPhoto(chatID int64) {
 		return
 	}
 	filename := fmt.Sprintf("%d.jpg", chatID)
-	err = downloadImage(link, getFileName(filename))
+	err = downloadImage(link, getFileName(s.StaticDirPath, filename))
 	if err != nil {
 		log.Printf("Error in downloadImage: %s", err)
 		return
@@ -110,14 +110,14 @@ func (s *Server) GetFile(fileID string, chatID int64) {
 
 	// check directory
 	dir := filepath.Dir(f.FilePath)
-	path := filepath.Join("static", dir)
+	path := filepath.Join(s.StaticDirPath, dir)
 	err = os.MkdirAll(path, 0755)
 	if err != nil {
 		log.Printf("Error in MkdirAll for FileID [%s]: %s", fileID, err)
 		return
 	}
 
-	filename := filepath.Join("static", f.FilePath)
+	filename := filepath.Join(s.StaticDirPath, f.FilePath)
 	err = downloadImage(f.Link(s.APIKey), filename)
 	if err != nil {
 		log.Printf("Error in MkdirAll for FileID [%s]: %s", fileID, err)
@@ -481,8 +481,8 @@ func (s *Server) censWord(msg *tgbotapi.Message, mWord string) {
 	return
 }
 
-func getFileName(fn string) string {
-	return fmt.Sprintf("static/%s", fn)
+func getFileName(staticDir, fn string) string {
+	return filepath.Join(staticDir, fn)
 }
 
 func downloadImage(url string, filename string) (err error) {
