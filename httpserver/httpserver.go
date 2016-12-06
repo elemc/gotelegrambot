@@ -17,12 +17,13 @@ import (
 
 // Server is a main object
 type Server struct {
-	Addr       string
-	Bot        *tgbotapi.BotAPI
-	PhotoCache PhotosCache
-	FileCache  FilesCache
-	APIKey     string
-	CensList   []string
+	Addr          string
+	Bot           *tgbotapi.BotAPI
+	PhotoCache    PhotosCache
+	FileCache     FilesCache
+	APIKey        string
+	CensList      []string
+	StaticDirPath string
 }
 
 const (
@@ -64,7 +65,7 @@ func (s *Server) Start() {
 
 	r := gin.Default()
 
-	r.StaticFS("/static", http.Dir("static"))
+	r.StaticFS("/static", http.Dir(s.StaticDirPath))
 	r.GET("/chat/:chat_id/:year/:month/:day", s.dayPage)
 	r.GET("/chat/:chat_id/:year/:month", s.monthPage)
 	r.GET("/chat/:chat_id/:year", s.yearPage)

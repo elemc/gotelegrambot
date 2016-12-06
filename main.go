@@ -23,6 +23,7 @@ func init() {
 	flag.StringVar(&settings.Couchbase.Cluster, "couch-cluster", settings.Couchbase.Cluster, "url to couchbase cluster")
 	flag.StringVar(&settings.Couchbase.Bucket, "couch-bucket", settings.Couchbase.Bucket, "couchbase bucket name")
 	flag.StringVar(&settings.Couchbase.Secret, "couch-secret", settings.Couchbase.Secret, "couchbase bucket password")
+	flag.StringVar(&settings.StaticDirPath, "static-dir-path", "static", "set path to static dir")
 }
 
 func main() {
@@ -44,6 +45,7 @@ func main() {
 	s.PhotoCache = make(httpserver.PhotosCache)
 	s.FileCache = make(httpserver.FilesCache)
 	s.APIKey = settings.APIKey
+	s.StaticDirPath = settings.StaticDirPath
 	go s.FillCens()
 	go s.Start()
 	//s.Start()

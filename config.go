@@ -13,9 +13,10 @@ const (
 
 // Settings is a main struct for settings
 type Settings struct {
-	APIKey    string            `json:"api-key"`
-	Addr      string            `json:"addr"`
-	Couchbase CouchbaseSettings `json:"couchbase"`
+	APIKey        string            `json:"api-key"`
+	Addr          string            `json:"addr"`
+	Couchbase     CouchbaseSettings `json:"couchbase"`
+	StaticDirPath string            `json:"static-dir-path"`
 }
 
 // CouchbaseSettings is a sub truct for couchbase settings
