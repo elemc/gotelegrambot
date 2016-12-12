@@ -277,19 +277,19 @@ func (s *Server) getMessages(chatID int64, beginTime, endTime time.Time) (body s
 			msgText += "<p>"
 			f := (*msg.Photo)[len(*msg.Photo)-1]
 			//for _, f := range *msg.Photo {
-			photoName := s.GetFileNameByFileID(msg.Chat.ID, f.FileID)
+			photoName := s.GetFileNameByFileIDURL(msg.Chat.ID, f.FileID)
 			msgText += fmt.Sprintf(`<p><a href="/%s"><img src="/%s"></img></a>`, photoName, photoName)
 			//}
 			msgText += "</p>"
 		}
 		if msg.Sticker != nil {
-			msgText += fmt.Sprintf(`<p><img src="/%s"></img></p>`, s.GetFileNameByFileID(msg.Chat.ID, msg.Sticker.FileID))
+			msgText += fmt.Sprintf(`<p><img src="/%s"></img></p>`, s.GetFileNameByFileIDURL(msg.Chat.ID, msg.Sticker.FileID))
 		}
 		if msg.Video != nil {
-			msgText += fmt.Sprintf(`<p><a href="/%s">Video in message</a></p>`, s.GetFileNameByFileID(msg.Chat.ID, msg.Video.FileID))
+			msgText += fmt.Sprintf(`<p><a href="/%s">Video in message</a></p>`, s.GetFileNameByFileIDURL(msg.Chat.ID, msg.Video.FileID))
 		}
 		if msg.Voice != nil {
-			msgText += fmt.Sprintf(`<p><a href="/%s">Voice in message</a></p>`, s.GetFileNameByFileID(msg.Chat.ID, msg.Voice.FileID))
+			msgText += fmt.Sprintf(`<p><a href="/%s">Voice in message</a></p>`, s.GetFileNameByFileIDURL(msg.Chat.ID, msg.Voice.FileID))
 		}
 
 		body += fmt.Sprintf(`

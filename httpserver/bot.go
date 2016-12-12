@@ -64,6 +64,23 @@ func (s *Server) GetFileNameByFileID(chatID int64, fileID string) (filename stri
 	return
 }
 
+// GetFileNameByFileIDURL returns file name by index
+func (s *Server) GetFileNameByFileIDURL(chatID int64, fileID string) (filename string) {
+	f, err := db.GetFile(fileID, chatID)
+	if err != nil {
+		// try to download it
+		s.GetFile(fileID, chatID)
+		f, err = db.GetFile(fileID, chatID)
+		if err != nil {
+			log.Printf("Error in GetFileNameByFileID with FileID [%s]: %s", fileID, err)
+			return "missing-data"
+		}
+	}
+	filename = filepath.Join("static/", f.FilePath)
+
+	return
+}
+
 // GetPhoto function download user photo and return file name for html tag img
 func (s *Server) GetPhoto(chatID int64) {
 	config := tgbotapi.NewUserProfilePhotos(int(chatID))
