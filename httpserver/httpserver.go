@@ -378,7 +378,7 @@ func (s *Server) getDates(chatID int64, year int, month int) (body string) {
 	return
 }
 func formatMessage(msg string) string {
-	msg = strings.Replace(msg, "<", "%%3C", -1)
-	msg = strings.Replace(msg, ">", "%%3E", -1)
+	msg = strings.Replace(msg, "<script", "%%SCRIPT", -1)
+	msg = strings.Replace(msg, "</script", "%%SCRIPT", -1)
 	return msg
 }
