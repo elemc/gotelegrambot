@@ -377,8 +377,22 @@ func (s *Server) getDates(chatID int64, year int, month int) (body string) {
 
 	return
 }
+
+func searchAndReplace(msg string, phrase string, replace string) string {
+	bytesMsg := []byte(msg)
+	loMsg := strings.ToLower(msg)
+	scriptIdx := strings.Index(loMsg, phrase)
+	if scriptIdx >= 0 {
+		for i, b := range []byte(replace) {
+			bytesMsg[scriptIdx+i] = b
+		}
+	}
+
+	return string(bytesMsg)
+}
+
 func formatMessage(msg string) string {
-	msg = strings.Replace(msg, "<script", "%%SCRIPT", -1)
-	msg = strings.Replace(msg, "</script", "%%SCRIPT", -1)
+	msg = searchAndReplace(msg, "<script", "%SCRIPT")
+	msg = searchAndReplace(msg, "javascript:", "javascript%")
 	return msg
 }
