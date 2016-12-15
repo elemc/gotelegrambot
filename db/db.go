@@ -47,6 +47,7 @@ func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	bucketName = couchbaseBucket
 
 	caches.MonthsByYear = make(map[int][]time.Month)
+	caches.mutex = new(sync.Mutex)
 	go updateDateCaches()
 }
 
@@ -594,5 +595,6 @@ func updateDateCaches() {
 			AddedDateToCaches(t)
 		}
 	}
+	log.Printf("Time caches updated.")
 	go updateDateCaches()
 }
