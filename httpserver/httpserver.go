@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -256,7 +257,7 @@ func (s *Server) getMessages(chatID int64, beginTime, endTime time.Time) (body s
 		if msg.ReplyToMessage != nil {
 			lt := time.Unix(int64(msg.ReplyToMessage.Date), 0)
 			replyLink := fmt.Sprintf("/chat/%d/%d/%d/%d#%s", msg.Chat.ID, lt.Year(), lt.Month(), lt.Day(), lt.Format("15:04:05"))
-			msgText = fmt.Sprintf(`<p class="reply"> <a href="%s">></a> %s</p><p>%s</p>`, replyLink, msg.ReplyToMessage.Text, msgText)
+			msgText = fmt.Sprintf(`<p class="reply"> <a href="%s">></a> %s</p><p>%s</p>`, replyLink, msg.ReplyToMessage.Text, url.QueryEscape(msgText))
 		}
 
 		class := ""
@@ -299,7 +300,7 @@ func (s *Server) getMessages(chatID int64, beginTime, endTime time.Time) (body s
 				<td class="la" width='17%%'><strong>%s</strong></td>
 				<td class="la">%s</td>
 				<td style="display:none;">%d</td>
-			</tr>`, class, photo, timeStr, timeStr, timeStr, timeStr, name, msgText, msg.MessageID)
+			</tr>`, class, photo, timeStr, timeStr, timeStr, timeStr, name, url.QueryEscape(msgText), msg.MessageID)
 	}
 	body += tableEnd
 
