@@ -6,16 +6,25 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	couchbase "github.com/couchbase/gocb"
 	"gopkg.in/telegram-bot-api.v4"
 )
 
+// Caches is struct for store date caches
+type Caches struct {
+	Years        []string
+	MonthsByYear map[int][]time.Month
+	mutex        *sync.Mutex
+}
+
 var (
 	cluster    *couchbase.Cluster
 	bucket     *couchbase.Bucket
 	bucketName string
+	caches     Caches
 )
 
 // CensLevel main struct for records censlevel:year:id
@@ -36,6 +45,9 @@ func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 		log.Fatalf("Cannot open bucket: %s", err)
 	}
 	bucketName = couchbaseBucket
+
+	caches.MonthsByYear = make(map[int][]time.Month)
+	go updateDateCaches()
 }
 
 // GoSaveMessage is a shell method for goroutine SaveMessage
@@ -48,6 +60,7 @@ func GoSaveMessage(msg *tgbotapi.Message) {
 
 // SaveMessage method save message to database
 func SaveMessage(msg *tgbotapi.Message) (err error) {
+	go AddedDateToCaches(msg.Time())
 	key := fmt.Sprintf("message:%d:%d", msg.Chat.ID, msg.MessageID)
 
 	type couchmessage struct {
@@ -439,11 +452,15 @@ func appendIfNotFoundInt(list []int, s int) []int {
 
 // GetYears function returns years msg date from chat messages
 func GetYears(chatID int64) (result []string, err error) {
+	if len(caches.Years) != 0 {
+		return caches.Years, nil
+	}
 	listDates, err := getDates(chatID, 0, 0)
 	if err != nil {
 		return
 	}
 	for _, t := range listDates {
+		go AddedDateToCaches(t)
 		s := strconv.Itoa(t.Year())
 		result = appendIfNotFound(result, s)
 	}
@@ -452,6 +469,11 @@ func GetYears(chatID int64) (result []string, err error) {
 
 // GetMonthList function returns month list msg date from chat messages and year
 func GetMonthList(chatID int64, year int) (result []time.Month, err error) {
+	if list, ok := caches.MonthsByYear[year]; ok {
+		if len(list) > 0 {
+			return list, nil
+		}
+	}
 	beginDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.Local).Unix()
 	endDate := time.Date(year, 12, 31, 23, 59, 59, 100, time.Local).Unix()
 	listDates, err := getDates(chatID, beginDate, endDate)
@@ -544,4 +566,33 @@ func GetUser(username string) (user *tgbotapi.User, err error) {
 	}
 
 	return
+}
+
+// AddedDateToCaches added date to caches
+func AddedDateToCaches(d time.Time) {
+	caches.mutex.Lock()
+	strYear := strconv.Itoa(d.Year())
+	month := d.Month()
+	caches.Years = appendIfNotFound(caches.Years, strYear)
+	caches.MonthsByYear[d.Year()] = appendIfNotFoundMonth(caches.MonthsByYear[d.Year()], month)
+	caches.mutex.Unlock()
+}
+
+func updateDateCaches() {
+	time.Sleep(time.Minute * 10)
+	chats, err := GetChats()
+	if err != nil {
+		return
+	}
+	for _, chat := range chats {
+		chatID := chat.ID
+		listDates, err := getDates(chatID, 0, 0)
+		if err != nil {
+			return
+		}
+		for _, t := range listDates {
+			AddedDateToCaches(t)
+		}
+	}
+	go updateDateCaches()
 }
