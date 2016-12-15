@@ -393,6 +393,6 @@ func searchAndReplace(msg string, phrase string, replace string) string {
 
 func formatMessage(msg string) string {
 	msg = searchAndReplace(msg, "<script", "%SCRIPT")
-	msg = searchAndReplace(msg, "javascript:", "javascript%")
+	msg = searchAndReplace(msg, "script:", "script%")
 	return msg
 }
