@@ -4,21 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	couchbase "github.com/couchbase/gocb"
 	"gopkg.in/telegram-bot-api.v4"
 )
-
-// Caches is struct for store date caches
-type Caches struct {
-	Years        []string
-	MonthsByYear map[int][]time.Month
-	mutex        *sync.Mutex
-}
 
 var (
 	cluster    *couchbase.Cluster
@@ -46,9 +39,8 @@ func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	}
 	bucketName = couchbaseBucket
 
-	caches.MonthsByYear = make(map[int][]time.Month)
-	caches.mutex = new(sync.Mutex)
-	go updateDateCaches()
+	caches = make(Caches)
+	updateDateCaches()
 }
 
 // GoSaveMessage is a shell method for goroutine SaveMessage
@@ -61,7 +53,7 @@ func GoSaveMessage(msg *tgbotapi.Message) {
 
 // SaveMessage method save message to database
 func SaveMessage(msg *tgbotapi.Message) (err error) {
-	go AddedDateToCaches(msg.Time())
+	go AddedDateToCaches(msg.Chat.ID, msg.Time())
 	key := fmt.Sprintf("message:%d:%d", msg.Chat.ID, msg.MessageID)
 
 	type couchmessage struct {
@@ -453,15 +445,17 @@ func appendIfNotFoundInt(list []int, s int) []int {
 
 // GetYears function returns years msg date from chat messages
 func GetYears(chatID int64) (result []string, err error) {
-	if len(caches.Years) != 0 {
-		return caches.Years, nil
+	years := getCache(chatID).Years
+	if len(years) != 0 {
+		sort.Strings(years)
+		return years, nil
 	}
 	listDates, err := getDates(chatID, 0, 0)
 	if err != nil {
 		return
 	}
 	for _, t := range listDates {
-		go AddedDateToCaches(t)
+		go AddedDateToCaches(chatID, t)
 		s := strconv.Itoa(t.Year())
 		result = appendIfNotFound(result, s)
 	}
@@ -470,9 +464,10 @@ func GetYears(chatID int64) (result []string, err error) {
 
 // GetMonthList function returns month list msg date from chat messages and year
 func GetMonthList(chatID int64, year int) (result []time.Month, err error) {
-	if list, ok := caches.MonthsByYear[year]; ok {
+	cache := getCache(chatID)
+	if list, ok := cache.MonthsByYear[year]; ok {
 		if len(list) > 0 {
-			return list, nil
+			return sortMonths(list), nil
 		}
 	}
 	beginDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.Local).Unix()
@@ -567,34 +562,4 @@ func GetUser(username string) (user *tgbotapi.User, err error) {
 	}
 
 	return
-}
-
-// AddedDateToCaches added date to caches
-func AddedDateToCaches(d time.Time) {
-	caches.mutex.Lock()
-	strYear := strconv.Itoa(d.Year())
-	month := d.Month()
-	caches.Years = appendIfNotFound(caches.Years, strYear)
-	caches.MonthsByYear[d.Year()] = appendIfNotFoundMonth(caches.MonthsByYear[d.Year()], month)
-	caches.mutex.Unlock()
-}
-
-func updateDateCaches() {
-	time.Sleep(time.Minute * 10)
-	chats, err := GetChats()
-	if err != nil {
-		return
-	}
-	for _, chat := range chats {
-		chatID := chat.ID
-		listDates, err := getDates(chatID, 0, 0)
-		if err != nil {
-			return
-		}
-		for _, t := range listDates {
-			AddedDateToCaches(t)
-		}
-	}
-	log.Printf("Time caches updated.")
-	go updateDateCaches()
 }
