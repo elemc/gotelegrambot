@@ -6,6 +6,7 @@ gotelegrambot
 =============
 
 This is simple bot for Telegram writen on Go (golang) and use Couchbase for data store.
+Example server http://logs.elemc.name bot store logs from chats
 
 Compile
 -------
