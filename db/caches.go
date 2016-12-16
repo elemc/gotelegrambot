@@ -59,7 +59,7 @@ func updateDateCaches() {
 		}
 	}
 	log.Printf("Time caches updated.")
-	go updateDateCaches()
+	//go updateDateCaches()
 }
 
 // GetCache function returns Cache pointer by Chat ID
