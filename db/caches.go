@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"log"
 	"sort"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 type Cache struct {
 	Years        []string
 	MonthsByYear map[int][]time.Month
+	Days         map[string][]int
 	mutex        *sync.Mutex
 }
 
@@ -23,6 +25,7 @@ func CreateNewCache() *Cache {
 	cache := new(Cache)
 	cache.mutex = new(sync.Mutex)
 	cache.MonthsByYear = make(map[int][]time.Month)
+	cache.Days = make(map[string][]int)
 	return cache
 }
 
@@ -40,6 +43,8 @@ func AddedDateToCaches(chatID int64, d time.Time) {
 
 	cache.Years = appendIfNotFound(cache.Years, strYear)
 	cache.MonthsByYear[d.Year()] = appendIfNotFoundMonth(cache.MonthsByYear[d.Year()], month)
+	id := getYearMonthID(d.Year(), month)
+	cache.Days[id] = appendIfNotFoundInt(cache.Days[id], d.Day())
 	cache.mutex.Unlock()
 }
 
@@ -83,4 +88,18 @@ func sortMonths(a []time.Month) (result []time.Month) {
 		result = append(result, time.Month(value))
 	}
 	return
+}
+
+func getDays(chatID int64, year int, month time.Month) []int {
+	id := getYearMonthID(year, month)
+	cache := getCache(chatID)
+	if result, ok := cache.Days[id]; ok {
+		sort.Ints(result)
+		return result
+	}
+	return []int{}
+}
+
+func getYearMonthID(year int, month time.Month) string {
+	return fmt.Sprintf("%d/%d", year, month)
 }

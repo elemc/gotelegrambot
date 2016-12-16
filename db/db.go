@@ -489,6 +489,10 @@ func GetMonthList(chatID int64, year int) (result []time.Month, err error) {
 
 // GetDates function returns month list msg date from chat messages and year
 func GetDates(chatID int64, year int, month int) (result []int, err error) {
+	result = getDays(chatID, year, time.Month(month))
+	if len(result) > 0 {
+		return
+	}
 	beginTime := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
 	beginDate := beginTime.Unix()
 	endDate := time.Date(year, time.Month(month), 32, 23, 59, 59, 100, time.Local).Unix()
@@ -496,9 +500,7 @@ func GetDates(chatID int64, year int, month int) (result []int, err error) {
 	if err != nil {
 		return
 	}
-	//log.Printf("Year: %d\tMonth: %d", year, month)
 	for _, t := range listDates {
-		//log.Printf("Year: %d\tMonth: %d", t.Year(), t.Month())
 		if t.Year() == year && t.Month() == time.Month(month) {
 			result = appendIfNotFoundInt(result, t.Day())
 		}
