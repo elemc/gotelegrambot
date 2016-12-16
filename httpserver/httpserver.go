@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"regexp"
@@ -249,14 +250,14 @@ func (s *Server) getMessages(chatID int64, beginTime, endTime time.Time) (body s
 			name += fmt.Sprintf(" (%s)", names)
 		}
 
-		msgText := msg.Text
+		msgText := formatMessage(msg.Text)
 		re := regexp.MustCompile(`(http|ftp|https):\/\/([\w\-_]+(?:(?:\.[\w\-_]+)+))([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?`)
 		msgText = re.ReplaceAllString(msgText, `<a href="$0">$0</a>`)
 
 		if msg.ReplyToMessage != nil {
 			lt := time.Unix(int64(msg.ReplyToMessage.Date), 0)
 			replyLink := fmt.Sprintf("/chat/%d/%d/%d/%d#%s", msg.Chat.ID, lt.Year(), lt.Month(), lt.Day(), lt.Format("15:04:05"))
-			msgText = fmt.Sprintf(`<p class="reply"> <a href="%s">></a> %s</p><p>%s</p>`, replyLink, msg.ReplyToMessage.Text, formatMessage(msgText))
+			msgText = fmt.Sprintf(`<p class="reply"> <a href="%s">></a> %s</p><p>%s</p>`, replyLink, msg.ReplyToMessage.Text, msgText)
 		}
 
 		class := ""
@@ -299,7 +300,7 @@ func (s *Server) getMessages(chatID int64, beginTime, endTime time.Time) (body s
 				<td class="la" width='17%%'><strong>%s</strong></td>
 				<td class="la">%s</td>
 				<td style="display:none;">%d</td>
-			</tr>`, class, photo, timeStr, timeStr, timeStr, timeStr, name, formatMessage(msgText), msg.MessageID)
+			</tr>`, class, photo, timeStr, timeStr, timeStr, timeStr, name, msgText, msg.MessageID)
 	}
 	body += tableEnd
 
@@ -392,7 +393,8 @@ func searchAndReplace(msg string, phrase string, replace string) string {
 }
 
 func formatMessage(msg string) string {
-	msg = searchAndReplace(msg, "<script", "%SCRIPT")
-	msg = searchAndReplace(msg, "script:", "script%")
-	return msg
+	return html.EscapeString(msg)
+	// msg = searchAndReplace(msg, "<script", "%SCRIPT")
+	// msg = searchAndReplace(msg, "script:", "script%")
+	//return msg
 }
