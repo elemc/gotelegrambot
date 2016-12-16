@@ -300,7 +300,7 @@ func (s *Server) getMessages(chatID int64, beginTime, endTime time.Time) (body s
 				<td class="la" width='17%%'><strong>%s</strong></td>
 				<td class="la">%s</td>
 				<td style="display:none;">%d</td>
-			</tr>`, class, photo, timeStr, timeStr, timeStr, timeStr, name, msgText, msg.MessageID)
+			</tr>`, class, photo, timeStr, timeStr, timeStr, timeStr, formatMessage(name), msgText, msg.MessageID)
 	}
 	body += tableEnd
 
