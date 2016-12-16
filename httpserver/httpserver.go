@@ -79,6 +79,7 @@ func (s *Server) Start() {
 
 func (s *Server) mainPage(c *gin.Context) {
 	page := parseTemplate(s.getMain())
+	c.Header("X-XSS-Protection", "1; mode=block")
 	c.Data(http.StatusOK, "text/html", page)
 }
 
@@ -92,6 +93,7 @@ func (s *Server) chatPage(c *gin.Context) {
 
 	page := parseTemplate(s.getYears(chatID))
 	// page := parseTemplate(s.getMessages(chatID))
+	c.Header("X-XSS-Protection", "1; mode=block")
 	c.Data(http.StatusOK, "text/html", page)
 }
 
@@ -111,6 +113,7 @@ func (s *Server) yearPage(c *gin.Context) {
 
 	page := parseTemplate(s.getMonths(chatID, year))
 	// page := parseTemplate(s.getMessages(chatID))
+	c.Header("X-XSS-Protection", "1; mode=block")
 	c.Data(http.StatusOK, "text/html", page)
 }
 
@@ -135,6 +138,7 @@ func (s *Server) monthPage(c *gin.Context) {
 	}
 
 	page := parseTemplate(s.getDates(chatID, year, month))
+	c.Header("X-XSS-Protection", "1; mode=block")
 	c.Data(http.StatusOK, "text/html", page)
 }
 
@@ -168,6 +172,7 @@ func (s *Server) dayPage(c *gin.Context) {
 	endTime := time.Date(year, time.Month(month), day, 23, 59, 59, 100, time.Local)
 
 	page := parseTemplate(s.getMessages(chatID, beginTime, endTime))
+	c.Header("X-XSS-Protection", "1; mode=block")
 	c.Data(http.StatusOK, "text/html", page)
 }
 
