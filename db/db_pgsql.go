@@ -371,7 +371,7 @@ func saveAudio(audio *tgbotapi.Audio) (err error) {
 	return
 }
 
-func savePhotoSize(msgID int, photo *tgbotapi.PhotoSize) (err error) {
+func savePhotoSize(msgID int, photo *tgbotapi.PhotoSize, newPhoto bool) (err error) {
 	if photo == nil {
 		return
 	}
@@ -384,22 +384,22 @@ func savePhotoSize(msgID int, photo *tgbotapi.PhotoSize) (err error) {
         VALUES('%s', %d, %d, %d)`,
 			photo.FileID, photo.Width, photo.Height, photo.FileSize)
 	} else {
-		queryStr = fmt.Sprintf(`INSERT INTO photosize (file_id, width, height, size, msg_id)
-        VALUES('%s', %d, %d, %d, '%d')`,
-			photo.FileID, photo.Width, photo.Height, photo.FileSize, msgID)
+		queryStr = fmt.Sprintf(`INSERT INTO photosize (file_id, width, height, size, msg_id, new)
+        VALUES('%s', %d, %d, %d, '%d', %t)`,
+			photo.FileID, photo.Width, photo.Height, photo.FileSize, msgID, newPhoto)
 
 	}
 	err = execQuery(queryStr)
 	return
 }
 
-func savePhoto(msgID int, photos *[]tgbotapi.PhotoSize) (err error) {
+func savePhoto(msgID int, photos *[]tgbotapi.PhotoSize, newPhoto bool) (err error) {
 	if photos == nil {
 		return
 	}
 
 	for _, photo := range *photos {
-		err = savePhotoSize(msgID, &photo)
+		err = savePhotoSize(msgID, &photo, newPhoto)
 		if err != nil {
 			return
 		}
@@ -418,7 +418,7 @@ func saveDocument(document *tgbotapi.Document) (err error) {
 
 	thumbnailID := ""
 	if document.Thumbnail != nil {
-		err = savePhotoSize(0, document.Thumbnail)
+		err = savePhotoSize(0, document.Thumbnail, false)
 		if err != nil {
 			return
 		}
@@ -443,7 +443,7 @@ func saveSticker(document *tgbotapi.Sticker) (err error) {
 
 	thumbnailID := ""
 	if document.Thumbnail != nil {
-		err = savePhotoSize(0, document.Thumbnail)
+		err = savePhotoSize(0, document.Thumbnail, false)
 		if err != nil {
 			return
 		}
@@ -458,8 +458,80 @@ func saveSticker(document *tgbotapi.Sticker) (err error) {
 	return
 }
 
-// SaveMessagePGSQL function save message to database
-func SaveMessagePGSQL(msg *tgbotapi.Message) (err error) {
+func saveVideo(document *tgbotapi.Video) (err error) {
+	if document == nil {
+		return
+	}
+
+	queryStr := fmt.Sprintf("DELETE FROM video WHERE file_id='%s'", document.FileID)
+	execQuery(queryStr)
+
+	thumbnailID := ""
+	if document.Thumbnail != nil {
+		err = savePhotoSize(0, document.Thumbnail, false)
+		if err != nil {
+			return
+		}
+		thumbnailID = document.Thumbnail.FileID
+	}
+
+	queryStr = fmt.Sprintf(`INSERT INTO video (file_id, thumbnail_id, width, height, duration, mime, size)
+                            VALUES('%s', '%s', %d, %d, %d, '%s', %d)`,
+		document.FileID, thumbnailID, document.Width, document.Height,
+		document.Duration, document.MimeType, document.FileSize)
+	err = execQuery(queryStr)
+	return
+}
+
+func saveVoice(document *tgbotapi.Voice) (err error) {
+	if document == nil {
+		return
+	}
+
+	queryStr := fmt.Sprintf("DELETE FROM voices WHERE file_id='%s'", document.FileID)
+	execQuery(queryStr)
+
+	queryStr = fmt.Sprintf(`INSERT INTO voices (file_id, duration, mime, size)
+                            VALUES('%s', %d, '%s', %d)`,
+		document.FileID, document.Duration, document.MimeType, document.FileSize)
+	err = execQuery(queryStr)
+	return
+}
+
+func saveMessageDeps(msg *tgbotapi.Message) (err error) {
+	if msg.From != nil {
+		err = SaveUserPGSQL(msg.From)
+		if err != nil {
+			return
+		}
+	}
+
+	if msg.ForwardFrom != nil {
+		err = SaveUserPGSQL(msg.ForwardFrom)
+		if err != nil {
+			return
+		}
+	}
+
+	if msg.Chat != nil {
+		err = SaveChatPGSQL(msg.Chat, false)
+		if err != nil {
+			return
+		}
+	}
+	if msg.ForwardFromChat != nil {
+		err = SaveChatPGSQL(msg.ForwardFromChat, true)
+		if err != nil {
+			return
+		}
+	}
+	if msg.ReplyToMessage != nil {
+		err = SaveMessagePGSQL(msg.ReplyToMessage)
+		if err != nil {
+			return
+		}
+	}
+
 	if msg.Entities != nil {
 		err = saveEntities(msg.MessageID, msg.Entities)
 		if err != nil {
@@ -482,7 +554,7 @@ func SaveMessagePGSQL(msg *tgbotapi.Message) (err error) {
 	}
 
 	if msg.Photo != nil {
-		err = savePhoto(msg.MessageID, msg.Photo)
+		err = savePhoto(msg.MessageID, msg.Photo, false)
 		if err != nil {
 			return
 		}
@@ -494,6 +566,217 @@ func SaveMessagePGSQL(msg *tgbotapi.Message) (err error) {
 			return
 		}
 	}
+
+	if msg.Video != nil {
+		err = saveVideo(msg.Video)
+		if err != nil {
+			return
+		}
+	}
+	if msg.Voice != nil {
+		err = saveVoice(msg.Voice)
+		if err != nil {
+			return
+		}
+	}
+
+	if msg.NewChatMember != nil {
+		err = SaveUserPGSQL(msg.NewChatMember)
+		if err != nil {
+			return
+		}
+	}
+
+	if msg.LeftChatMember != nil {
+		err = SaveUserPGSQL(msg.LeftChatMember)
+		if err != nil {
+			return
+		}
+	}
+
+	if msg.NewChatPhoto != nil {
+		err = savePhoto(msg.MessageID, msg.NewChatPhoto, true)
+		if err != nil {
+			return
+		}
+	}
+
+	if msg.PinnedMessage != nil {
+		err = SaveMessage(msg.PinnedMessage)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// SaveMessagePGSQL function save message to database
+func SaveMessagePGSQL(msg *tgbotapi.Message) (err error) {
+	err = saveMessageDeps(msg)
+	if err != nil {
+		return
+	}
+
+	queryStr := fmt.Sprintf("DELETE FROM messages WHERE id=%d", msg.MessageID)
+	execQuery(queryStr)
+
+	var (
+		fromID             int
+		chatID             int64
+		fFromID            int
+		fChatID            int64
+		replyMsgID         int
+		audioID            string
+		doucementID        string
+		stickerID          string
+		videoID            string
+		voiceID            string
+		contactPhoneNumber string
+		contactFirstName   string
+		contactLastName    string
+		contactUserID      int
+		locationLongitude  float64
+		locationLatitude   float64
+		venueLongitude     float64
+		venueLatitude      float64
+		venueTitle         string
+		venueAddress       string
+		venueFoursqueareID string
+		newChatID          int
+		leftChatID         int
+		pinnedMessageID    int
+	)
+
+	if msg.From != nil {
+		fromID = msg.From.ID
+	}
+	if msg.Chat != nil {
+		chatID = msg.Chat.ID
+	}
+	if msg.ForwardFrom != nil {
+		fFromID = msg.ForwardFrom.ID
+	}
+	if msg.ForwardFromChat != nil {
+		fChatID = msg.ForwardFromChat.ID
+	}
+	if msg.ReplyToMessage != nil {
+		replyMsgID = msg.ReplyToMessage.MessageID
+	}
+	if msg.Audio != nil {
+		audioID = msg.Audio.FileID
+	}
+	if msg.Document != nil {
+		doucementID = msg.Document.FileID
+	}
+	queryStr = fmt.Sprintf(`INSERT INTO messages (  id,
+                                                    from_id,
+                                                    date,
+                                                    chat_id,
+                                                    forward_from_id,
+                                                    forward_from_chat_id,
+                                                    forward_date,
+                                                    reply_to_message_id,
+                                                    edit_date,
+                                                    text,
+                                                    audio_id,
+                                                    document_id,
+                                                    sticker_id,
+                                                    video_id,
+                                                    voice_id,
+                                                    caption,
+                                                    contact_phone_number,
+                                                    contact_first_name
+                                                    contact_last_name,
+                                                    contact_user_id,
+                                                    location_longitude,
+                                                    location_latitude,
+                                                    venue_longitude,
+                                                    venue_latitude,
+                                                    venue_title,
+                                                    venue_address,
+                                                    venue_foursquare_id,
+                                                    new_chat_member_id,
+                                                    left_chat_member_id,
+                                                    new_chat_title,
+                                                    delete_chat_photo,
+                                                    group_chat_created,
+                                                    super_group_chat_created,
+                                                    channel_chat_created,
+                                                    migrate_to_chat_id,
+                                                    migrate_from_chat_id,
+                                                    pinned_message_id)
+                            VALUES( %d,
+                                    %d,
+                                    %d,
+                                    %d,
+                                    %d,
+                                    %d,
+                                    %d,
+                                    %d,
+                                    %d,
+                                    '%s',
+                                    '%s',
+                                    '%s',
+                                    '%s',
+                                    '%s',
+                                    '%s',
+                                    '%s',
+                                    '%s',
+                                    '%s',
+                                    '%s',
+                                    %d,
+                                    %f,%f,
+                                    %f, %f, '%s', '%s', '%s',
+                                    %d,
+                                    %d,
+                                    '%s',
+                                    %t,
+                                    %t,
+                                    %t,
+                                    %t,
+                                    %d,
+                                    %d,
+                                    %d)`,
+		msg.MessageID,
+		fromID,
+		msg.Date,
+		chatID,
+		fFromID,
+		fChatID,
+		msg.ForwardDate,
+		replyMsgID,
+		msg.EditDate,
+		msg.Text,
+		audioID,
+		doucementID,
+		stickerID,
+		videoID,
+		voiceID,
+		msg.Caption,
+		contactPhoneNumber,
+		contactFirstName,
+		contactLastName,
+		contactUserID,
+		locationLongitude,
+		locationLatitude,
+		venueLongitude,
+		venueLatitude,
+		venueTitle,
+		venueAddress,
+		venueFoursqueareID,
+		newChatID,
+		leftChatID,
+		msg.NewChatTitle,
+		msg.DeleteChatPhoto,
+		msg.GroupChatCreated,
+		msg.SuperGroupChatCreated,
+		msg.ChannelChatCreated,
+		msg.MigrateToChatID,
+		msg.MigrateFromChatID,
+		pinnedMessageID)
+	err = execQuery(queryStr)
+
 	return
 }
 

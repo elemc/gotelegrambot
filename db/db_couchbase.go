@@ -35,6 +35,51 @@ func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	updateDateCaches()
 }
 
+// SaveMessageCouchbase method save message to database
+func SaveMessageCouchbase(msg *tgbotapi.Message) (err error) {
+	go AddedDateToCaches(msg.Chat.ID, msg.Time())
+	key := fmt.Sprintf("message:%d:%d", msg.Chat.ID, msg.MessageID)
+
+	type couchmessage struct {
+		tgbotapi.Message
+		Type string `json:"type"`
+	}
+	cMsg := couchmessage{}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(data, &cMsg)
+	if err != nil {
+		return
+	}
+	cMsg.Type = "message"
+
+	_, err = bucket.Upsert(key, &cMsg, 0)
+
+	if msg.Chat != nil {
+		err = SaveChat(msg.Chat, false)
+	}
+	if msg.ForwardFrom != nil {
+		err = SaveUser(msg.ForwardFrom)
+	}
+	if msg.ForwardFromChat != nil {
+		err = SaveChat(msg.ForwardFromChat, true)
+	}
+	if msg.ReplyToMessage != nil {
+		err = SaveMessage(msg.ReplyToMessage)
+	}
+	if msg.From != nil {
+		err = SaveUser(msg.From)
+	}
+	if msg.NewChatMember != nil {
+		err = SaveUser(msg.NewChatMember)
+	}
+
+	return
+}
+
 // SaveUserCouchbase method save user to database
 func SaveUserCouchbase(user *tgbotapi.User) (err error) {
 	key := fmt.Sprintf("user:%d", user.ID)
