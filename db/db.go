@@ -6,18 +6,21 @@ import (
 	"log"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	couchbase "github.com/couchbase/gocb"
 	"gopkg.in/telegram-bot-api.v4"
 )
 
+const (
+	typeChat        = "chat"
+	typeForwardType = "forward-type"
+)
+
 var (
-	cluster    *couchbase.Cluster
-	bucket     *couchbase.Bucket
-	bucketName string
-	caches     Caches
+	caches       Caches
+	useCouchbase bool
+	usePGSQL     bool
 )
 
 // CensLevel main struct for records censlevel:year:id
@@ -25,22 +28,6 @@ type CensLevel struct {
 	ID    int `json:"user_id"`
 	Level int `json:"level"`
 	Year  int `json:"year"`
-}
-
-// InitCouchbase function initialize couchbase bucket with parameters
-func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
-	cluster, err := couchbase.Connect(couchbaseCluster)
-	if err != nil {
-		log.Fatalf("Cannot connect to cluster: %s", err)
-	}
-	bucket, err = cluster.OpenBucket(couchbaseBucket, couchbaseSecret)
-	if err != nil {
-		log.Fatalf("Cannot open bucket: %s", err)
-	}
-	bucketName = couchbaseBucket
-
-	caches = make(Caches)
-	updateDateCaches()
 }
 
 // GoSaveMessage is a shell method for goroutine SaveMessage
@@ -67,6 +54,9 @@ func SaveMessage(msg *tgbotapi.Message) (err error) {
 		return
 	}
 	err = json.Unmarshal(data, &cMsg)
+	if err != nil {
+		return
+	}
 	cMsg.Type = "message"
 
 	_, err = bucket.Upsert(key, &cMsg, 0)
@@ -95,97 +85,50 @@ func SaveMessage(msg *tgbotapi.Message) (err error) {
 
 // SaveUser method save user to database
 func SaveUser(user *tgbotapi.User) (err error) {
-	key := fmt.Sprintf("user:%d", user.ID)
-
-	type couchuser struct {
-		tgbotapi.User
-		Type string `json:"type"`
+	if useCouchbase {
+		err = SaveUserCouchbase(user)
+	} else if usePGSQL {
+		err = SaveUserPGSQL(user)
 	}
-	cUser := couchuser{}
-
-	data, err := json.Marshal(user)
-	if err != nil {
-		return
-	}
-	err = json.Unmarshal(data, &cUser)
-	cUser.Type = "user"
-
-	_, err = bucket.Upsert(key, &cUser, 0)
 	return
 }
 
 // SaveFile method save user to database
 func SaveFile(file *tgbotapi.File, chatID int64) (err error) {
-	key := fmt.Sprintf("file:%d:%s", chatID, file.FileID)
-
-	type couchfile struct {
-		tgbotapi.File
-		Type string `json:"type"`
+	if useCouchbase {
+		err = SaveFileCouchbase(file, chatID)
+	} else if usePGSQL {
+		err = SaveFilePGSQL(file, chatID)
 	}
-	cFile := couchfile{}
-
-	data, err := json.Marshal(file)
-	if err != nil {
-		return
-	}
-	err = json.Unmarshal(data, &cFile)
-	cFile.Type = "file"
-
-	_, err = bucket.Upsert(key, &cFile, 0)
 	return
 }
 
 // GetCensLevel function returns censore level for user
 func GetCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
-	currentLevel = 0
-	currentYear := time.Now().Year()
-	key := fmt.Sprintf("censlevel:%d:%d", currentYear, user.ID)
-
-	level := CensLevel{}
-
-	_, err = bucket.Get(key, &level)
-	if err != nil {
-		return
+	if useCouchbase {
+		return GetCensLevelCouchbase(user)
+	} else if usePGSQL {
+		return GetCensLevelPGSQL(user)
 	}
-	currentLevel = level.Level
 	return
 }
 
 // SetCensLevel function sets level for user
 func SetCensLevel(user *tgbotapi.User, setlevel int) (err error) {
-	currentYear := time.Now().Year()
-	key := fmt.Sprintf("censlevel:%d:%d", currentYear, user.ID)
-
-	level := CensLevel{}
-
-	_, err = bucket.Get(key, &level)
-	if err != nil {
-		level.ID = user.ID
-		level.Level = setlevel
-		level.Year = currentYear
-	} else {
-		level.Level = setlevel
+	if useCouchbase {
+		err = SetCensLevelCouchbase(user, setlevel)
+	} else if usePGSQL {
+		err = SetCensLevelPGSQL(user, setlevel)
 	}
-
-	_, err = bucket.Upsert(key, &level, 0)
 	return
 }
 
 // ClearCensLevel remove document from bucket
 func ClearCensLevel(user *tgbotapi.User) (err error) {
-	currentYear := time.Now().Year()
-	key := fmt.Sprintf("censlevel:%d:%d", currentYear, user.ID)
-
-	level := CensLevel{}
-
-	cas, err := bucket.Get(key, &level)
-	if err != nil {
-		return
-	}
-
-	_, err = bucket.Remove(key, cas)
-	if err != nil {
-		return
+	if useCouchbase {
+		err = ClearCensLevelCouchbase(user)
+	} else if usePGSQL {
+		err = ClearCensLevelPGSQL(user)
 	}
 	return
 }
@@ -206,68 +149,31 @@ func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
 
 // GetFile returns file json from couchbase
 func GetFile(fileID string, chatID int64) (f *tgbotapi.File, err error) {
-	key := fmt.Sprintf("file:%d:%s", chatID, fileID)
-	f = new(tgbotapi.File)
-	_, err = bucket.Get(key, f)
+	if useCouchbase {
+		f, err = GetFileCouchbase(fileID, chatID)
+	} else if usePGSQL {
+		f, err = GetFilePGSQL(fileID, chatID)
+	}
 	return
 }
 
 // SaveChat method for save chat to database
 func SaveChat(chat *tgbotapi.Chat, forward bool) (err error) {
-	key := fmt.Sprintf("chat:%d", chat.ID)
-
-	type couchchat struct {
-		tgbotapi.Chat
-		Type string `json:"type"`
+	if useCouchbase {
+		err = SaveChatCouchbase(chat, forward)
+	} else if usePGSQL {
+		err = SaveChatPGSQL(chat, forward)
 	}
-	cChat := couchchat{}
-
-	data, err := json.Marshal(chat)
-	if err != nil {
-		return
-	}
-	err = json.Unmarshal(data, &cChat)
-	if forward {
-		cChat.Type = "forward-chat"
-	} else {
-		cChat.Type = "chat"
-	}
-
-	_, err = bucket.Upsert(key, cChat, 0)
 	return
 }
 
 // GetChats returns chat list
 func GetChats() (chats []*tgbotapi.Chat, err error) {
-	type couchchat struct {
-		Msg tgbotapi.Chat `json:"bot"`
+	if useCouchbase {
+		chats, err = GetChatsCouchbase()
+	} else if usePGSQL {
+		chats, err = GetChatsPGSQL()
 	}
-
-	query := couchbase.NewN1qlQuery(fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='chat'", bucketName))
-	res, err := bucket.ExecuteN1qlQuery(query, nil)
-	if err != nil {
-		return
-	}
-
-	//var data interface{}
-
-	chat := couchchat{}
-	for res.Next(&chat) {
-
-		data, err := json.Marshal(chat.Msg)
-		if err != nil {
-			log.Printf("Error in marshal GetChats: %s", err)
-			continue
-		}
-		oChat := new(tgbotapi.Chat)
-		err = json.Unmarshal(data, oChat)
-		if err != nil {
-			log.Printf("Error in unmarshal GetChats: %s", err)
-			continue
-		}
-		chats = append(chats, oChat)
-	}
-
 	return
 }
 
@@ -513,54 +419,11 @@ func GetUser(username string) (user *tgbotapi.User, err error) {
 	if len(username) == 0 {
 		return
 	}
-	type couchuser struct {
-		User tgbotapi.User `json:"bot"`
-	}
 
-	var queryStr string
-
-	if username[0] == '@' { // username
-		queryStr = fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='user' AND username='%s'", bucketName, username[1:])
-	} else { // first and last name
-		argList := strings.Split(username, " ")
-		switch len(argList) {
-		case 1:
-			queryStr = fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='user' AND first_name='%s'", bucketName, argList[0])
-		case 2:
-			queryStr = fmt.Sprintf("SELECT * FROM %s AS bot WHERE type='user' AND first_name='%s' AND last_name='%s'", bucketName, argList[0], argList[1])
-		default:
-			return nil, fmt.Errorf("User not found\n%s", username)
-		}
-	}
-
-	query := couchbase.NewN1qlQuery(queryStr)
-	res, err := bucket.ExecuteN1qlQuery(query, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var userList []string
-	tempuser := couchuser{}
-	for res.Next(&tempuser) {
-		data, err := json.Marshal(tempuser.User)
-		if err != nil {
-			log.Printf("Error in marshal GetUser: %s", err)
-			continue
-		}
-		oUser := new(tgbotapi.User)
-		err = json.Unmarshal(data, oUser)
-		if err != nil {
-			log.Printf("Error in unmarshal GetUser: %s", err)
-			continue
-		}
-		user = oUser
-		userList = append(userList, user.String())
-	}
-
-	if len(userList) > 1 {
-		return nil, fmt.Errorf("Many users\n%s", strings.Join(userList, "\n"))
-	} else if len(userList) == 0 {
-		return nil, fmt.Errorf("User not found\n%s", username)
+	if useCouchbase {
+		return GetUserCouchbase(username)
+	} else if usePGSQL {
+		return GetUserPGSQL(username)
 	}
 
 	return

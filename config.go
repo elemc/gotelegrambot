@@ -13,10 +13,11 @@ const (
 
 // Settings is a main struct for settings
 type Settings struct {
-	APIKey        string            `json:"api-key"`
-	Addr          string            `json:"addr"`
-	Couchbase     CouchbaseSettings `json:"couchbase"`
-	StaticDirPath string            `json:"static-dir-path"`
+	APIKey                 string            `json:"api-key"`
+	Addr                   string            `json:"addr"`
+	Couchbase              CouchbaseSettings `json:"couchbase"`
+	StaticDirPath          string            `json:"static-dir-path"`
+	PGSQLConnectionsString string            `json:"pgsql-conn"`
 }
 
 // CouchbaseSettings is a sub truct for couchbase settings
@@ -33,6 +34,7 @@ func LoadConfig() {
 	settings.Couchbase.Cluster = "couchbase://couchbase"
 	settings.Couchbase.Bucket = "default"
 	settings.Couchbase.Secret = ""
+	settings.PGSQLConnectionsString = "user=gotb dbname=gotb sslmode=disable"
 
 	f, err := os.Open(configFileName)
 	if err != nil {
