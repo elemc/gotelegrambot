@@ -262,10 +262,8 @@ func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
 // AddWarnLevel added +1 to warning level for user
 func AddWarnLevel(user *tgbotapi.User) (currentLevel int, err error) {
 	if currentLevel, err = GetWarnLevel(user); err != nil {
-		if err == couchbase.ErrKeyNotFound {
-			currentLevel = 1
-			err = SetWarnLevel(user, currentLevel)
-		}
+		currentLevel = 1
+		err = SetWarnLevel(user, currentLevel)
 		return
 	}
 	currentLevel++
