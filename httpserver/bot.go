@@ -531,10 +531,10 @@ func (s *Server) kickUser(userID int, chat *tgbotapi.Chat, ban bool) (ok bool, e
 	config := tgbotapi.ChatMemberConfig{}
 	config.UserID = userID
 	if chat.IsSuperGroup() || chat.IsGroup() {
-		config.SuperGroupUsername = "@" + chat.UserName
+		config.SuperGroupUsername = chat.SuperGroupUsername
 		log.Printf("Kick from %s", config.SuperGroupUsername)
 	} else {
-		config.ChatID = chat.ID
+		config.ChatID = chat.ChatConfig().ChatID
 	}
 
 	var resp tgbotapi.APIResponse
