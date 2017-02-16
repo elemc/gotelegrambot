@@ -227,9 +227,12 @@ func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err erro
 	}
 	cc := tgbotapi.ChatConfig{}
 	if chat.IsSuperGroup() || chat.IsGroup() {
-		cc.SuperGroupUsername = "@" + chat.UserName
+		if chat.ChatConfig().SuperGroupUsername == "" {
+			return false, fmt.Errorf("Chat with all admins!")
+		}
+		cc.SuperGroupUsername = chat.ChatConfig().SuperGroupUsername
 	} else {
-		cc.ChatID = chat.ID
+		cc.ChatID = chat.ChatConfig().ChatID
 	}
 	var admins []tgbotapi.ChatMember
 	if admins, err = s.Bot.GetChatAdministrators(cc); err != nil {
@@ -251,7 +254,10 @@ func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err erro
 func (s *Server) UserIsBanned(userID int, chat *tgbotapi.Chat) (banned bool, err error) {
 	cc := tgbotapi.ChatConfigWithUser{}
 	if chat.IsSuperGroup() || chat.IsGroup() {
-		cc.SuperGroupUsername = "@" + chat.UserName
+		if chat.ChatConfig().SuperGroupUsername == "" {
+			return false, fmt.Errorf("Chat with all admins!")
+		}
+		cc.SuperGroupUsername = chat.ChatConfig().SuperGroupUsername
 	} else {
 		cc.ChatID = chat.ID
 	}
@@ -531,6 +537,10 @@ func (s *Server) kickUser(userID int, chat *tgbotapi.Chat, ban bool) (ok bool, e
 	config := tgbotapi.ChatMemberConfig{}
 	config.UserID = userID
 	if chat.IsSuperGroup() || chat.IsGroup() {
+		if chat.ChatConfig().SuperGroupUsername == "" {
+			return false, fmt.Errorf("Chat with all admins!")
+		}
+		cc.SuperGroupUsername = chat.ChatConfig().SuperGroupUsername
 		config.SuperGroupUsername = chat.ChatConfig().SuperGroupUsername
 		log.Printf("Kick from %s", config.SuperGroupUsername)
 	} else {
