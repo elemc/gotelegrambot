@@ -202,6 +202,12 @@ func (s *Server) CommandHandler(msg *tgbotapi.Message) {
 		s.ClearCens(msg)
 	case "mycens":
 		s.GetCensLevel(msg)
+	case "warn":
+		s.WarnAdd(msg)
+	case "clearwarn":
+		s.WarnClear(msg)
+	case "mywarn":
+		s.GetWarnLevel(msg)
 	default:
 		log.Printf("Unknown command: %s", msg.Command())
 		// 	if msg.
@@ -225,9 +231,8 @@ func (s *Server) UserIsAdmin(userID int, chat *tgbotapi.Chat) (ok bool, err erro
 	} else {
 		cc.ChatID = chat.ID
 	}
-
-	admins, err := s.Bot.GetChatAdministrators(cc)
-	if err != nil {
+	var admins []tgbotapi.ChatMember
+	if admins, err = s.Bot.GetChatAdministrators(cc); err != nil {
 		log.Printf("Error in GetChatAdministrators: %s", err)
 		return
 	}
@@ -546,4 +551,107 @@ func (s *Server) kickUser(userID int, chat *tgbotapi.Chat, ban bool) (ok bool, e
 		ok = true
 	}
 	return
+}
+
+func (s *Server) WarnAdd(msg *tgbotapi.Message) {
+	var (
+		user *tgbotapi.User
+		err  error
+	)
+	if user, err = db.GetUser(msg.CommandArguments()); err != nil {
+		errStrings := strings.Split(err.Error(), "\n")
+		if len(errStrings) > 1 {
+			switch errStrings[0] {
+			case "User not found":
+				s.SendError(fmt.Sprintf("Пользователь %s не найден", msg.CommandArguments()), msg)
+				return
+			case "Many users":
+				s.SendError(fmt.Sprintf("Найдено более одного пользователя, уточните:\n%s", strings.Join(errStrings[1:], "\n")), msg)
+				return
+			default:
+				s.SendError(fmt.Sprintf("Произошла неизвестная ошибка при поиске пользователя: %s", err.Error()), msg)
+				return
+			}
+		}
+	}
+	if user == nil {
+		s.SendError(fmt.Sprintf("Пользователь [%s] не найден", msg.CommandArguments()), msg)
+		return
+	}
+	if user.ID == msg.From.ID {
+		s.SendError("Сам себя? O_o", msg)
+		return
+	}
+
+	currentLevel, err := db.AddWarnLevel(user)
+	if err != nil {
+		log.Printf("Error in AddWarnLevel: %s", err)
+		return
+	}
+
+	if currentLevel >= 5 {
+		ok, err := s.kickUser(user.ID, msg.Chat, true)
+		if err != nil {
+			log.Printf("Error in kickUser: %s", err)
+			return
+		}
+		if ok {
+			s.SendMessage("Пользователь %s забанен!", msg.Chat.ID, -1)
+		}
+	}
+}
+
+func (s *Server) WarnClear(msg *tgbotapi.Message) {
+	isAdmin, err := s.UserIsAdmin(msg.From.ID, msg.Chat)
+	if err != nil {
+		return
+	}
+	if !isAdmin {
+		s.SendError("Не удалось установить Вашу причастность к администраторам группы!", msg)
+		return
+	}
+
+	user, err := db.GetUser(msg.CommandArguments())
+	if err != nil {
+		errStrings := strings.Split(err.Error(), "\n")
+		if len(errStrings) > 1 {
+			switch errStrings[0] {
+			case "User not found":
+				s.SendError(fmt.Sprintf("Пользователь %s не найден", msg.CommandArguments()), msg)
+				return
+			case "Many users":
+				s.SendError(fmt.Sprintf("Найдено более одного пользователя, уточните:\n%s", strings.Join(errStrings[1:], "\n")), msg)
+				return
+			default:
+				s.SendError(fmt.Sprintf("Произошла неизвестная ошибка при поиске пользователя: %s", err.Error()), msg)
+				return
+			}
+		}
+	}
+
+	if user == nil {
+		s.SendError(fmt.Sprintf("Пользователь %s не найден.", msg.CommandArguments()), msg)
+		return
+	}
+
+	err = db.ClearWarnLevel(user)
+	if err != nil {
+		log.Printf("Error in WarnClear -> ClearWarnLevel: %s", err)
+		return
+	}
+	s.SendError("Выполнено успешно.", msg)
+}
+
+// GetWarnLevel send message with current warning level for user
+func (s *Server) GetWarnLevel(msg *tgbotapi.Message) {
+	currentLevel, err := db.GetWarnLevel(msg.From)
+	if err != nil {
+		if err.Error() == "Key not found." {
+			s.SendError("Чист душой!", msg)
+			return
+		}
+		log.Printf("Error in GetWarnLevel -> GetWarnLevel: %s", err)
+		return
+	}
+	s.SendError(fmt.Sprintf("Уровень настороженности: %d", currentLevel), msg)
 }

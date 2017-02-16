@@ -27,6 +27,12 @@ type CensLevel struct {
 	Year  int `json:"year"`
 }
 
+// WarnLevel main struct for records warnlevel:id
+type WarnLevel struct {
+	ID    int `json:"user_id"`
+	Level int `json:"level"`
+}
+
 // InitCouchbase function initialize couchbase bucket with parameters
 func InitCouchbase(couchbaseCluster, couchbaseBucket, couchbaseSecret string) {
 	cluster, err := couchbase.Connect(couchbaseCluster)
@@ -151,6 +157,21 @@ func GetCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
 	return
 }
 
+// GetWarnLevel function returns warning level for user
+func GetWarnLevel(user *tgbotapi.User) (currentLevel int, err error) {
+	currentLevel = 0
+	key := fmt.Sprintf("warnlevel:%d", user.ID)
+
+	level := WarnLevel{}
+
+	_, err = bucket.Get(key, &level)
+	if err != nil {
+		return
+	}
+	currentLevel = level.Level
+	return
+}
+
 // SetCensLevel function sets level for user
 func SetCensLevel(user *tgbotapi.User, setlevel int) (err error) {
 	currentYear := time.Now().Year()
@@ -163,6 +184,24 @@ func SetCensLevel(user *tgbotapi.User, setlevel int) (err error) {
 		level.ID = user.ID
 		level.Level = setlevel
 		level.Year = currentYear
+	} else {
+		level.Level = setlevel
+	}
+
+	_, err = bucket.Upsert(key, &level, 0)
+	return
+}
+
+// SetWarnLevel function sets level for user
+func SetWarnLevel(user *tgbotapi.User, setlevel int) (err error) {
+	key := fmt.Sprintf("warnlevel:%d", user.ID)
+
+	level := WarnLevel{}
+
+	_, err = bucket.Get(key, &level)
+	if err != nil {
+		level.ID = user.ID
+		level.Level = setlevel
 	} else {
 		level.Level = setlevel
 	}
@@ -190,6 +229,22 @@ func ClearCensLevel(user *tgbotapi.User) (err error) {
 	return
 }
 
+// ClearWarnLevel remove document from bucket
+func ClearWarnLevel(user *tgbotapi.User) (err error) {
+	key := fmt.Sprintf("warnlevel:%d", user.ID)
+	level := WarnLevel{}
+
+	var cas couchbase.Cas
+	if cas, err = bucket.Get(key, &level); err != nil {
+		return
+	} else {
+		if _, err = bucket.Remove(key, cas); err != nil {
+			return
+		}
+	}
+	return
+}
+
 // AddCensLevel added +1 to cens level in year
 func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
 	currentLevel, err = GetCensLevel(user)
@@ -201,6 +256,16 @@ func AddCensLevel(user *tgbotapi.User) (currentLevel int, err error) {
 	currentLevel++
 	err = SetCensLevel(user, currentLevel)
 
+	return
+}
+
+// AddWarnLevel added +1 to warning level for user
+func AddWarnLevel(user *tgbotapi.User) (currentLevel int, err error) {
+	if currentLevel, err = GetWarnLevel(user); err != nil {
+		return
+	}
+	currentLevel++
+	err = SetWarnLevel(user, currentLevel)
 	return
 }
 
