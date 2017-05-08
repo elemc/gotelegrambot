@@ -187,7 +187,7 @@ func (s *Server) CommandHandler(msg *tgbotapi.Message) {
 	}
 	switch msg.Command() {
 	case "start":
-		s.SendMessage("Привет", msg.Chat.ID, msg.MessageID)
+		s.SendMessage("Привет,", msg.Chat.ID, msg.MessageID)
 	case "help":
 		s.SendHelp(msg)
 	case "ping":
